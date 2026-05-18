@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner Dashboard — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard.css?v=2">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="dash-body">
+  <div id="navbar-root"></div>
+  <div class="dashboard-wrapper">
+    <div class="dashboard-container">
+      <aside class="dash-sidebar">
+        <div class="dash-sidebar__profile">
+          <div id="dash-avatar-container" style="margin-bottom:12px;"></div>
+          <div class="dash-sidebar__name" id="dash-name"></div>
+          <div class="dash-sidebar__role">Owner <span class="badge badge--green" style="font-size:10px;">✓ Verified</span></div>
+        </div>
+        <nav class="dash-nav">
+          <button class="dash-nav__item dash-nav__item--active" onclick="showTab('analytics')">💰 Analytics</button>
+          <button class="dash-nav__item" onclick="showTab('listings')">🔧 My Listings</button>
+          <button class="dash-nav__item" onclick="showTab('requests')">📥 Incoming Requests</button>
+          <button class="dash-nav__item" onclick="showTab('messages')">💬 Messages</button>
+          <div style="border-top: 1px solid rgba(0,0,0,0.1); margin: 12px 0; padding-top:12px;">
+            <a href="listing-new.html" class="btn btn--primary btn--full" style="padding:10px; font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">+ List New Tool</a>
+          </div>
+        </nav>
+      </aside>
+
+      <main class="dash-main">
+        <!-- Analytics Tab -->
+        <div id="tab-analytics" class="tab-content" style="display:block;">
+          <h1 class="dash-main__title">Income Analytics</h1>
+          <p class="dash-main__subtitle">Track your revenue and tool performance.</p>
+
+          <div class="dash-stats" id="stats-container">
+            <div class="stat-card">
+              <div class="stat-card__icon">💸</div>
+              <div><div class="stat-card__value" id="stat-daily">...</div><div class="stat-card__label">Daily Income</div></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card__icon">📈</div>
+              <div><div class="stat-card__value" id="stat-weekly">...</div><div class="stat-card__label">Weekly Income</div></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card__icon">🏛️</div>
+              <div><div class="stat-card__value" id="stat-total">...</div><div class="stat-card__label">Total Revenue</div></div>
+            </div>
+          </div>
+
+          <div style="background:white; padding:32px; border-radius:24px; margin-top:32px; box-shadow:var(--shadow-md);">
+              <h1 class="dash-main__title" style="font-size:18px; margin-bottom:8px;">Revenue Trend</h1>
+              <p style="font-size:13px; color:#999; margin-bottom:24px;">Monthly income growth for the last 6 months.</p>
+              <div style="height:350px;">
+                  <canvas id="revenueChart"></canvas>
+              </div>
+          </div>
+        </div>
+
+        <!-- My Listings Tab -->
+        <div id="tab-listings" class="tab-content" style="display:none;">
+          <div class="dash-main__header">
+            <h1 class="dash-main__title">My Listings</h1>
+            <a href="listing-new.html" class="btn btn--primary">+ Add Tool</a>
+          </div>
+          <div class="listing-grid" id="listings-container">Loading...</div>
+        </div>
+
+        <!-- Requests Tab -->
+        <div id="tab-requests" class="tab-content" style="display:none;">
+          <div class="dash-main__header">
+             <h1 class="dash-main__title">Incoming Requests</h1>
+          </div>
+          <div class="listing-grid" id="requests-container">Loading...</div>
+        </div>
+
+        <!-- Messages Tab -->
+        <div id="tab-messages" class="tab-content" style="display:none;">
+          <h1 class="dash-main__title">Messages</h1>
+          <div class="messages-container" style="display:flex; height:500px; background:white; border-radius:16px; overflow:hidden; border:1px solid #eee;">
+            <div class="conversations-list" id="conv-list" style="width:300px; border-right:1px solid #eee; overflow-y:auto;">
+               <!-- Conversations will load here -->
+            </div>
+            <div class="chat-area" style="flex:1; display:flex; flex-direction:column;">
+               <div id="chat-header" style="padding:16px; border-bottom:1px solid #eee; font-weight:700;">Select a conversation</div>
+               <div id="chat-history" style="flex:1; padding:20px; overflow-y:auto; background:#fcfcfc; display:flex; flex-direction:column; gap:12px;"></div>
+               <div id="chat-input-area" style="padding:16px; border-top:1px solid #eee; display:none; gap:12px;">
+                  <input type="text" id="msg-input" placeholder="Type a message..." style="flex:1; padding:10px; border:1px solid #ddd; border-radius:12px;">
+                  <button class="btn btn--primary" id="send-msg-btn">Send</button>
+               </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- QR Handover Modal -->
+  <div id="qr-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:40px; border-radius:32px; text-align:center; max-width:400px; width:90%; position:relative;">
+      <button onclick="document.getElementById('qr-modal').style.display='none'" style="position:absolute; top:20px; right:20px; border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+      <h2 style="margin-bottom:8px;">Handover QR</h2>
+      <p style="color:#666; font-size:14px; margin-bottom:32px;">The renter will scan this to start the rental.</p>
+      <div id="qr-code-container" style="display:flex; justify-content:center; margin-bottom:32px;"></div>
+      <p style="font-weight:700; color:var(--color-primary);">Awaiting Scan...</p>
+    </div>
+  </div>
+
+  <div id="toast-container-root"></div>
+
+  <script type="module">
+    import { CURRENT_USER, checkAuth, getOwnerStats, fetchTools, fetchBookings, updateBookingStatus, formatCurrency, fetchMessages, sendMessage } from './js/data_v2.js';
+    import { renderNavbar, renderAvatar, initToasts, showToast, renderStatusPill } from './js/components.js';
+
+    async function init() {
+      const loggedIn = await checkAuth();
+      if (!loggedIn || !CURRENT_USER.isOwner) {
+         window.location.href = 'login.html';
+         return;
+      }
+
+      document.getElementById('navbar-root').innerHTML = renderNavbar('dashboard');
+      document.getElementById('dash-avatar-container').innerHTML = renderAvatar(CURRENT_USER, 'xl');
+      document.getElementById('dash-name').textContent = CURRENT_USER.name;
+      initToasts();
+
+      window.showTab = function(tabId) {
+         document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+         document.querySelectorAll('.dash-nav__item').forEach(el => el.classList.remove('dash-nav__item--active'));
+         document.getElementById('tab-' + tabId).style.display = 'block';
+         event.currentTarget.classList.add('dash-nav__item--active');
+         if(tabId === 'analytics') loadStats();
+         if(tabId === 'listings') loadListings();
+         if(tabId === 'requests') loadRequests();
+         if(tabId === 'messages') loadConversations();
+      };
+
+      loadStats();
+    }
+
+    let revenueChart = null;
+
+    async function loadStats() {
+      try {
+        const stats = await getOwnerStats();
+        document.getElementById('stat-daily').textContent = formatCurrency(stats.daily || 0); 
+        document.getElementById('stat-weekly').textContent = formatCurrency(stats.weekly || 0);
+        document.getElementById('stat-total').textContent = formatCurrency(stats.totalEarned || 0);
+
+        if (stats.monthlyRevenue && stats.monthlyRevenue.length > 0) {
+            renderRevenueChart(stats.monthlyRevenue);
+        }
+      } catch (e) {
+        showToast('error', 'Stats Failed', e.message);
+      }
+    }
+
+    function renderRevenueChart(data) {
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        
+        if (revenueChart) {
+            revenueChart.destroy();
+        }
+
+        revenueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.month),
+                datasets: [{
+                    label: 'Revenue (₹)',
+                    data: data.map(d => d.revenue),
+                    borderColor: '#ff6b00',
+                    backgroundColor: 'rgba(255, 107, 0, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#ff6b00',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f0f0f0' },
+                        ticks: {
+                            callback: value => '₹' + value.toLocaleString()
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    async function loadListings() {
+      const tools = await fetchTools({ owner_id: CURRENT_USER.id });
+      const c = document.getElementById('listings-container');
+      c.innerHTML = tools.map(t => `
+        <div class="listing-row" style="background:white; margin-bottom:12px; border-radius:16px; padding:16px; transition:transform 0.2s;" onmouseenter="this.style.transform='translateX(4px)'" onmouseleave="this.style.transform='none'">
+           <a href="tool-detail.html?id=${t.id}" style="display:flex; align-items:center; flex:1; text-decoration:none; color:inherit;">
+             <img src="${t.photos[0]}" style="width:80px; height:60px; border-radius:12px; object-fit:cover;">
+             <div style="flex:1; padding-left:16px;">
+               <strong style="font-size:16px;">${t.title}</strong>
+               <div style="font-size:12px; color:#666; margin-top:4px;">${formatCurrency(t.pricePerDay)}/day · ${t.category}</div>
+             </div>
+           </a>
+           <div class="listing-row__actions" style="display:flex; gap:12px; align-items:center;">
+              <a href="tool-detail.html?id=${t.id}" class="btn btn--ghost btn--sm">View</a>
+              <a href="listing-new.html?edit=${t.id}" class="btn btn--outline btn--sm">Edit</a>
+              <button class="btn btn--ghost btn--sm" style="color:red;" onclick="handleDeleteListing('${t.id}')">Unpublish</button>
+           </div>
+        </div>
+      `).join('') || '<div class="empty-state">No listings found</div>';
+    }
+
+    async function loadRequests() {
+      const bookings = await fetchBookings();
+      // Filter for tools I OWN. Show PENDING as priority, but also APPROVED/CONFIRMED/RENTED/RETURNED/REJECTED
+      const myRequests = bookings.filter(b => b.ownerId == CURRENT_USER.id);
+
+      const c = document.getElementById('requests-container');
+      // Sort: Pending at the top
+      myRequests.sort((a,b) => (a.status === 'PENDING' ? -1 : 1));
+
+      c.innerHTML = myRequests.map(b => `
+        <div class="listing-row" style="background:white; margin-bottom:12px; border-radius:16px; padding:16px; align-items:center;">
+           <img src="${b.toolPhoto || 'https://via.placeholder.com/40'}" style="width:60px; height:60px; border-radius:12px; object-fit:cover;">
+           <div style="flex:1; padding-left:16px;">
+              <strong>${b.toolTitle}</strong>
+              <div style="font-size:13px; color:#555;">Requested by ${b.borrowerName} · ${b.startDate} to ${b.endDate}</div>
+              <div style="margin-top:4px;">${renderStatusPill(b.status)}</div>
+           </div>
+           <div style="display:flex; flex-direction:column; gap:8px;">
+               <div style="display:flex; gap:8px;">
+                 <button class="btn btn--primary btn--sm" onclick="handleAction('${b.id}', 'APPROVED')">Accept</button>
+                 <button class="btn btn--outline btn--sm" onclick="handleAction('${b.id}', 'REJECTED')">Reject</button>
+               </div>
+               <button class="btn btn--ghost btn--sm" onclick="openChat('${b.id}', '${b.borrowerName}', '${b.toolTitle}')">💬 Message</button>
+           </div>
+        </div>
+      `).join('') || '<div class="empty-state">No pending requests</div>';
+    }
+
+    window.handleAction = async (id, status) => {
+        try {
+            await updateBookingStatus(id, status);
+            showToast('success', 'Done', 'Request ' + status);
+            loadRequests();
+        } catch (e) {
+            showToast('error', 'Error', e.message);
+        }
+    }
+
+    let activeBookingId = null;
+
+    async function loadConversations() {
+      const bookings = await fetchBookings();
+      const c = document.getElementById('conv-list');
+      // Show bookings that belong to me as Owner
+      const myConvs = bookings.filter(b => b.ownerId == CURRENT_USER.id);
+      
+      c.innerHTML = myConvs.map(b => `
+        <div class="conv-item" onclick="selectConversation('${b.id}', '${b.borrowerName}', '${b.toolTitle}')" style="padding:16px; border-bottom:1px solid #eee; cursor:pointer; transition:background 0.2s;">
+           <div style="font-weight:700; font-size:14px;">${b.borrowerName}</div>
+           <div style="font-size:12px; color:#666;">${b.toolTitle}</div>
+        </div>
+      `).join('') || '<div style="padding:20px; color:#999; text-align:center;">No conversations</div>';
+    }
+
+    window.selectConversation = async (id, name, tool) => {
+       activeBookingId = id;
+       document.getElementById('chat-header').textContent = `Chat with ${name} (${tool})`;
+       document.getElementById('chat-input-area').style.display = 'flex';
+       loadMessages();
+    };
+
+    async function loadMessages() {
+       if(!activeBookingId) return;
+       const msgs = await fetchMessages(activeBookingId);
+       const h = document.getElementById('chat-history');
+       h.innerHTML = msgs.map(m => `
+         <div style="align-self: ${m.isMine ? 'flex-end' : 'flex-start'}; background: ${m.isMine ? 'var(--color-primary)' : 'white'}; color: ${m.isMine ? 'white' : 'black'}; padding: 10px 14px; border-radius: 14px; max-width: 80%; border: ${m.isMine ? 'none' : '1px solid #eee'};">
+            ${m.content}
+         </div>
+       `).join('');
+       h.scrollTop = h.scrollHeight;
+    }
+
+    document.getElementById('send-msg-btn').onclick = async () => {
+       const input = document.getElementById('msg-input');
+       if(!input.value.trim() || !activeBookingId) return;
+       try {
+          await sendMessage(activeBookingId, input.value.trim());
+          input.value = '';
+          loadMessages();
+       } catch(e) { showToast('error', 'Failed to send', e.message); }
+    };
+
+    window.openChat = (id, name, tool) => {
+       showTab('messages');
+       selectConversation(id, name, tool);
+    };
+
+    window.handleDeleteListing = (id) => {
+       if(confirm('Are you sure you want to unpublish this listing? It will no longer be visible to renters.')) {
+          showToast('info', 'Unpublished', 'The tool has been removed from public results.');
+          // In a real app, we'd call an API here.
+          loadListings();
+       }
+    };
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile | ToolShare</title>
+    
+    <!-- Design Tokens & Components -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/profile.css">
+    
+    <!-- Preload for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="navbar-container"></div>
+
+    <main class="container">
+        <div id="profile-content" class="reveal">
+            <div class="skeleton-layout" id="profile-skeleton">
+                <div class="profile-grid">
+                    <div style="height:400px;background:var(--color-surface);border-radius:var(--radius-2xl);"></div>
+                    <div>
+                        <div style="height:50px;width:200px;background:var(--color-surface);margin-bottom:24px;"></div>
+                        <div class="user-listings-grid">
+                            <div style="height:300px;background:var(--color-surface);"></div>
+                            <div style="height:300px;background:var(--color-surface);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="profile-actual" style="display:none;">
+                <div class="profile-grid">
+                    <!-- Sidebar Card -->
+                    <aside id="sidebar-card"></aside>
+                    
+                    <!-- Main Content -->
+                    <div class="profile-main">
+                        <div class="profile-tabs">
+                            <button class="profile-tab profile-tab--active" data-tab="listings">Active Listings</button>
+                            <button class="profile-tab" data-tab="reviews">Reviews</button>
+                        </div>
+                        
+                        <div id="tab-content">
+                            <!-- Listings Tab -->
+                            <div id="listings-panel">
+                                <h3 class="profile-section-title">Active Listings <span id="listing-count">0</span></h3>
+                                <div class="user-listings-grid" id="user-listings"></div>
+                            </div>
+                            
+                            <!-- Reviews Tab -->
+                            <div id="reviews-panel" style="display:none;">
+                                <h3 class="profile-section-title">Latest Reviews <span id="review-count">0</span></h3>
+                                <div class="reviews-list" id="user-reviews"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <!-- Logic -->
+    <script type="module">
+        import { USERS, TOOLS, REVIEWS } from './js/data_v2.js';
+        import { 
+            renderNavbar, 
+            renderFooter, 
+            initNavbarScroll, 
+            initScrollReveal,
+            renderProfileCard,
+            renderToolCard,
+            renderReviewItem,
+            showToast
+        } from './js/components.js';
+
+        // 1. Setup Shell
+        document.getElementById('navbar-container').innerHTML = renderNavbar('profile');
+        document.getElementById('footer-container').innerHTML = renderFooter();
+        initNavbarScroll();
+        initScrollReveal();
+
+        // 2. Fetch Data
+        const params = new URLSearchParams(window.location.search);
+        const userId = params.get('id') || 'u1';
+        const user = USERS.find(u => u.id === userId);
+
+        if (!user) {
+            showToast('error', 'User not found', 'Redirecting to browse...');
+            setTimeout(() => window.location.href = 'browse.html', 1500);
+        } else {
+            document.title = `${user.name} | ToolShare Profile`;
+            renderProfile(user);
+        }
+
+        function renderProfile(user) {
+            const userTools = TOOLS.filter(t => t.ownerId === user.id);
+            const userReviews = REVIEWS.filter(r => r.tool?.ownerId === user.id || r.reviewerId === user.id);
+
+            // Populate Panels
+            document.getElementById('sidebar-card').innerHTML = renderProfileCard(user);
+            
+            // Populate Listings
+            const toolGrid = document.getElementById('user-listings');
+            if (userTools.length > 0) {
+                toolGrid.innerHTML = userTools.map(t => renderToolCard(t)).join('');
+                document.getElementById('listing-count').textContent = userTools.length;
+            } else {
+                toolGrid.innerHTML = '<div style="grid-column:1/-1;padding:80px;text-align:center;color:var(--color-text-3);border:1px dashed var(--color-border);border-radius:var(--radius-xl);">No active listings tool yet.</div>';
+            }
+
+            // Populate Reviews
+            const reviewsList = document.getElementById('user-reviews');
+            if (userReviews.length > 0) {
+                reviewsList.innerHTML = userReviews.map(r => renderReviewItem(r)).join('');
+                document.getElementById('review-count').textContent = userReviews.length;
+            } else {
+                reviewsList.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-3);">No reviews yet.</div>';
+            }
+
+            // Show Actual content
+            document.getElementById('profile-skeleton').style.display = 'none';
+            document.getElementById('profile-actual').style.display = 'block';
+        }
+
+        // 3. Tab Switching
+        const tabs = document.querySelectorAll('.profile-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('profile-tab--active'));
+                tab.classList.add('profile-tab--active');
+                
+                const panelId = tab.dataset.tab;
+                document.getElementById('listings-panel').style.display = panelId === 'listings' ? 'block' : 'none';
+                document.getElementById('reviews-panel').style.display = panelId === 'reviews' ? 'block' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>

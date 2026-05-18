@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Rent this tool on ToolShare — view photos, pricing, reviews, and book instantly.">
+  <title>Tool Details — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/tool-detail.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <main class="detail-page" id="detail-page">
+    <div class="detail-layout" id="detail-layout">
+      <!-- Skeleton while loading -->
+      <div style="grid-column:1/-1;">
+        <div class="skeleton" style="height:20px;width:300px;margin-bottom:24px;"></div>
+      </div>
+      <div>
+        <div class="skeleton skeleton--img" style="border-radius:24px;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <div class="skeleton" style="width:80px;height:60px;border-radius:12px;"></div>
+          <div class="skeleton" style="width:80px;height:60px;border-radius:12px;"></div>
+          <div class="skeleton" style="width:80px;height:60px;border-radius:12px;"></div>
+        </div>
+        <div class="skeleton skeleton--title" style="margin-top:32px;width:80%;"></div>
+        <div class="skeleton skeleton--text" style="width:60%;"></div>
+        <div class="skeleton skeleton--text" style="width:90%;margin-top:24px;"></div>
+        <div class="skeleton skeleton--text"></div>
+        <div class="skeleton skeleton--text" style="width:70%;"></div>
+      </div>
+      <div>
+        <div class="skeleton" style="height:420px;border-radius:24px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { 
+      getConditionInfo, getCategoryLabel, getCategoryIcon, formatCurrency, formatDate, getInitials, timeAgo,
+      fetchToolDetail, createBooking
+    } from './js/data_v2.js';
+
+    import { 
+      renderNavbar, renderFooter, renderStars, renderConditionBadge, renderAvatar, renderPriceBreakdown, 
+      initNavbarScroll, initToasts, showToast 
+    } from './js/components.js';
+
+    try {
+      document.getElementById('navbar-root').innerHTML = renderNavbar('');
+      document.getElementById('footer-root').innerHTML = renderFooter();
+      initNavbarScroll();
+      initToasts();
+    } catch (e) {
+      console.error('Navbar/Footer failed to render:', e);
+    }
+
+    // Get tool ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const toolId = params.get('id');
+
+    async function loadData() {
+      if (!toolId) {
+        showError('No tool selected');
+        return;
+      }
+
+      try {
+        const tool = await fetchToolDetail(toolId);
+        renderToolDetail(tool);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('detail-layout').innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1;">
+          <div class="empty-state__icon">🔍</div>
+          <div class="empty-state__title">Tool not found</div>
+          <div class="empty-state__desc">${msg}</div>
+          <a href="browse.html" class="btn btn--primary">Browse All Tools</a>
+        </div>`;
+    }
+
+    loadData();
+
+    function renderToolDetail(tool) {
+      const owner = tool.owner;
+      const cond = getConditionInfo(tool.condition);
+      const toolReviews = tool.reviews || [];
+      const isLoggedIn = localStorage.getItem('ts_logged_in') === 'true';
+
+      document.title = `${tool.title} — ToolShare`;
+
+      document.getElementById('detail-layout').innerHTML = `
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb">
+          <a href="index.html">Home</a>
+          <span class="breadcrumb__sep">›</span>
+          <a href="browse.html">Browse</a>
+          <span class="breadcrumb__sep">›</span>
+          <a href="browse.html?category=${tool.category}">${getCategoryLabel(tool.category)}</a>
+          <span class="breadcrumb__sep">›</span>
+          <span style="color:var(--color-text);font-weight:500;">${tool.title}</span>
+        </nav>
+
+        <!-- LEFT COLUMN -->
+        <div class="detail-left">
+          <!-- Photo Gallery -->
+          <div class="gallery">
+            <div class="gallery__main" id="gallery-main">
+              <img src="${tool.photos[0]}" alt="${tool.title}" id="gallery-img">
+              ${tool.photos.length > 1 ? `
+                <button class="gallery__nav gallery__nav--prev" id="gallery-prev">‹</button>
+                <button class="gallery__nav gallery__nav--next" id="gallery-next">›</button>
+              ` : ''}
+              <span class="gallery__count">📷 ${tool.photos.length} photos</span>
+            </div>
+            <div class="gallery__thumbs">
+              ${tool.photos.map((photo, i) => `
+                <div class="gallery__thumb ${i === 0 ? 'gallery__thumb--active' : ''}" data-index="${i}">
+                  <img src="${photo}" alt="Photo ${i+1}">
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Tool Info -->
+          <div class="tool-info__header">
+            <div class="tool-info__category">
+              ${renderConditionBadge(tool.condition)}
+              <span class="badge badge--blue">${getCategoryIcon(tool.category)} ${getCategoryLabel(tool.category)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <h1 class="tool-info__title">${tool.title}</h1>
+                <button class="tool-card__fav ${tool.isWished ? 'tool-card__fav--active' : ''}" 
+                        style="position:static; width:44px; height:44px; font-size:24px; border:1px solid var(--color-border);"
+                        onclick="handleToggleWishlist(${tool.id})">
+                    ${tool.isWished ? '❤️' : '♡'}
+                </button>
+            </div>
+            <div class="tool-info__meta">
+              <span class="tool-info__meta-item">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                ${tool.address || 'Near you'}
+              </span>
+              <span class="tool-info__meta-item">
+                ${renderStars(tool.rating, tool.reviewCount, 'sm')}
+              </span>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="tool-desc">
+            <h3 style="font-size:var(--font-lg);font-weight:700;margin-bottom:var(--space-3);">Description</h3>
+            <p class="tool-desc__text">${tool.description}</p>
+          </div>
+
+          <!-- Specs -->
+          <div>
+            <h3 style="font-size:var(--font-lg);font-weight:700;margin-bottom:var(--space-3);">Specifications</h3>
+            <div class="specs-table">
+              <div class="specs-table__row">
+                <div class="specs-table__label">Brand</div>
+                <div class="specs-table__value">${tool.brand || 'N/A'}</div>
+              </div>
+              <div class="specs-table__row">
+                <div class="specs-table__label">Category</div>
+                <div class="specs-table__value">${getCategoryLabel(tool.category)}</div>
+              </div>
+              <div class="specs-table__row">
+                <div class="specs-table__label">Condition</div>
+                <div class="specs-table__value">${cond.label}</div>
+              </div>
+              <div class="specs-table__row">
+                <div class="specs-table__label">Daily Rate</div>
+                <div class="specs-table__value">${formatCurrency(tool.pricePerDay)}</div>
+              </div>
+              <div class="specs-table__row">
+                <div class="specs-table__label">Deposit</div>
+                <div class="specs-table__value">${formatCurrency(tool.deposit)}</div>
+              </div>
+              <div class="specs-table__row">
+                <div class="specs-table__label">Location</div>
+                <div class="specs-table__value">${tool.city || 'Mumbai'}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Location Map -->
+          <div class="map-section" style="margin-top:var(--space-6); margin-bottom:var(--space-6);">
+            <h3 style="font-size:var(--font-lg);font-weight:700;margin-bottom:var(--space-3);">Location</h3>
+            <div style="width:100%; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--color-border);">
+              <iframe 
+                width="100%" 
+                height="100%" 
+                frameborder="0" 
+                scrolling="no" 
+                marginheight="0" 
+                marginwidth="0" 
+                src="https://maps.google.com/maps?q=${encodeURIComponent((tool.address ? tool.address + ', ' : '') + (tool.city || 'Mumbai'))}&t=&z=13&ie=UTF8&iwloc=&output=embed">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- Owner Card -->
+          <div class="owner-card">
+            <div class="owner-card__header">
+              ${renderAvatar(owner, 'lg')}
+              <div class="owner-card__info">
+                <h3>${owner.name}</h3>
+                <p>Member since ${owner.memberSince || '2023'} · ${owner.isVerified ? '✅ Verified' : 'Unverified'}</p>
+              </div>
+            </div>
+            <div class="owner-card__stats">
+              <div class="owner-card__stat">
+                <div class="owner-card__stat-value">${owner.toolCount || 1}</div>
+                <div class="owner-card__stat-label">Tools</div>
+              </div>
+              <div class="owner-card__stat">
+                <div class="owner-card__stat-value">98%</div>
+                <div class="owner-card__stat-label">Response</div>
+              </div>
+              <div class="owner-card__stat">
+                <div class="owner-card__stat-value">12</div>
+                <div class="owner-card__stat-label">Rentals</div>
+              </div>
+              <div class="owner-card__stat">
+                <div class="owner-card__stat-value">4.9★</div>
+                <div class="owner-card__stat-label">Rating</div>
+              </div>
+            </div>
+            <div class="owner-card__actions">
+              <a href="profile.html?id=${owner.id}" class="btn btn--outline btn--full">View Profile</a>
+              <button class="btn btn--primary btn--full">💬 Message Owner</button>
+            </div>
+          </div>
+
+          <!-- Availability -->
+          <div class="availability-section" style="margin-bottom:var(--space-6);">
+            <h3 style="font-size:var(--font-xl);font-weight:700;margin-bottom:var(--space-5);">Availability</h3>
+            <div id="availability-calendar" style="background:white; padding:20px; border-radius:24px; border:1px solid var(--color-border);"></div>
+          </div>
+
+          <!-- Reviews -->
+          <div class="reviews-section">
+            <h3 style="font-size:var(--font-xl);font-weight:700;margin-bottom:var(--space-5);">Reviews</h3>  
+            <div class="reviews-summary">
+              <div class="reviews-summary__big">
+                <div class="reviews-summary__big-num">${tool.rating}</div>
+                ${renderStars(tool.rating, null, 'md')}
+                <div class="reviews-summary__big-label">${tool.reviewCount} reviews</div>
+              </div>
+              <div class="reviews-summary__bars">
+                ${[5,4,3,2,1].map(star => {
+                  const count = toolReviews.filter(r => r.rating === star).length;
+                  const pct = toolReviews.length > 0 ? Math.round(count / toolReviews.length * 100) : 0;
+                  return `
+                  <div class="review-bar">
+                    <span class="review-bar__label">${star}★</span>
+                    <div class="review-bar__track"><div class="review-bar__fill" style="width:${pct}%"></div></div>
+                    <span class="review-bar__pct">${pct}%</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+
+            ${toolReviews.length > 0 ? toolReviews.map(review => `
+              <div class="review-card">
+                <div class="review-card__header">
+                  ${renderAvatar(review.reviewer, 'sm')}
+                  <div>
+                    <div class="review-card__name">${review.reviewer.name}</div>
+                    <div class="review-card__date">${timeAgo(review.createdAt)}</div>
+                  </div>
+                  <div style="margin-left:auto;">${renderStars(review.rating, null, 'sm')}</div>
+                </div>
+                <p class="review-card__text">${review.comment}</p>
+              </div>
+            `).join('') : `
+              <div class="empty-state" style="padding:48px 0;">
+                <div class="empty-state__icon">📝</div>
+                <div class="empty-state__title">No reviews yet</div>
+                <div class="empty-state__desc">Be the first to rent and review this tool!</div>
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN — Booking Widget -->
+        <div>
+          <div class="booking-widget">
+            <div class="booking-widget__price">
+              <span class="booking-widget__price-main">${formatCurrency(tool.pricePerDay)}</span>
+              <span class="booking-widget__price-unit">/ day</span>
+            </div>
+
+            <!-- Dates -->
+            <div class="date-picker">
+              <div class="date-picker__row">
+                <div class="date-picker__field">
+                  <label class="date-picker__label">Start Date</label>
+                  <input type="date" class="input" id="start-date" min="${new Date().toISOString().split('T')[0]}">
+                </div>
+                <div class="date-picker__field">
+                  <label class="date-picker__label">End Date</label>
+                  <input type="date" class="input" id="end-date" min="${new Date().toISOString().split('T')[0]}">
+                </div>
+              </div>
+            </div>
+
+            <!-- Delivery -->
+            <div>
+              <div class="date-picker__label" style="margin-bottom:8px;">Delivery</div>
+              <div class="delivery-options">
+                <div class="delivery-option delivery-option--active" data-delivery="pickup" id="opt-pickup">
+                  <span class="delivery-option__icon">🏠</span>
+                  Pickup (Free)
+                </div>
+                <div class="delivery-option" data-delivery="delivery" id="opt-delivery">
+                  <span class="delivery-option__icon">🚚</span>
+                  Delivery (+₹100)
+                </div>
+              </div>
+            </div>
+
+            <!-- Price Breakdown (shown when dates selected) -->
+            <div id="price-breakdown" style="margin-bottom:20px;display:none;"></div>
+
+            <button class="btn btn--primary btn--full btn--lg" id="book-btn"
+              style="font-size:var(--font-base);padding:16px;">
+              ${isLoggedIn ? '🔒 Request to Rent' : 'Log in to Book'}
+            </button>
+
+            <div class="booking-widget__safety">
+              <span class="booking-widget__safety-item">🔒 Secure payment</span>
+              <span class="booking-widget__safety-item">✓ Damage protection</span>
+              <span class="booking-widget__safety-item">↩ Free cancellation 24h</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // --- Interactive Logic ---
+
+      // Gallery navigation
+      let currentPhoto = 0;
+      const img = document.getElementById('gallery-img');
+      const thumbs = document.querySelectorAll('.gallery__thumb');
+
+      function setPhoto(index) {
+        currentPhoto = index;
+        img.style.opacity = '0';
+        setTimeout(() => {
+          img.src = tool.photos[index];
+          img.style.opacity = '1';
+        }, 150);
+        thumbs.forEach((t, i) => t.classList.toggle('gallery__thumb--active', i === index));
+      }
+
+      thumbs.forEach(thumb => {
+        thumb.addEventListener('click', () => setPhoto(parseInt(thumb.dataset.index)));
+      });
+
+      const prevBtn = document.getElementById('gallery-prev');
+      const nextBtn = document.getElementById('gallery-next');
+      if (prevBtn) prevBtn.addEventListener('click', () => setPhoto((currentPhoto - 1 + tool.photos.length) % tool.photos.length));
+      if (nextBtn) nextBtn.addEventListener('click', () => setPhoto((currentPhoto + 1) % tool.photos.length));
+
+      // Delivery options
+      document.querySelectorAll('.delivery-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          document.querySelectorAll('.delivery-option').forEach(o => o.classList.remove('delivery-option--active'));
+          opt.classList.add('delivery-option--active');
+          updatePriceBreakdown();
+        });
+      });
+
+      // Date change → show price breakdown
+      function updatePriceBreakdown() {
+        const start = document.getElementById('start-date').value;
+        const end = document.getElementById('end-date').value;
+        const breakdownEl = document.getElementById('price-breakdown');
+
+        if (start && end) {
+          const days = Math.max(1, Math.ceil((new Date(end) - new Date(start)) / 86400000));
+          const isDelivery = document.querySelector('.delivery-option--active').dataset.delivery === 'delivery';
+          const deliveryFee = isDelivery ? 100 : 0;
+
+          breakdownEl.innerHTML = renderPriceBreakdown(tool.pricePerDay, days, tool.deposit, deliveryFee);
+          breakdownEl.style.display = 'block';
+        } else {
+          breakdownEl.style.display = 'none';
+        }
+      }
+
+      document.getElementById('start-date').addEventListener('change', (e) => {
+        document.getElementById('end-date').min = e.target.value;
+        updatePriceBreakdown();
+      });
+      document.getElementById('end-date').addEventListener('change', updatePriceBreakdown);
+
+      // Initialize Calendar
+      initCalendar(tool.id);
+
+      // Book button with real persistence
+      document.getElementById('book-btn').addEventListener('click', async () => {
+        if (!isLoggedIn) {
+          showToast('info', 'Login required', 'Please log in to book tools.');
+          setTimeout(() => window.location.href = 'login.html', 1000);
+          return;
+        }
+
+        const start = document.getElementById('start-date').value;
+        const end = document.getElementById('end-date').value;
+        
+        if (!start || !end) {
+          showToast('warning', 'Select dates', 'Please pick start and end dates.');
+          return;
+        }
+
+        const isDelivery = document.querySelector('.delivery-option--active').dataset.delivery === 'delivery';
+        
+        // Simple check for unavailable dates (the backend will also check, but let's be proactive)
+        const btn = document.getElementById('book-btn');
+        btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:18px;height:18px;"></span> Checking availability...';
+        btn.disabled = true;
+
+        try {
+            const res = await createBooking({
+                toolId: tool.id,
+                startDate: start,
+                endDate: end,
+                isDelivery: isDelivery
+            });
+            showToast('success', '🎉 Booking requested!', 'The owner will review your request shortly.');
+            setTimeout(() => window.location.href = `renter-dashboard.html`, 1500);
+        } catch (err) {
+            showToast('error', 'Booking failed', err.message);
+            btn.innerHTML = 'Request to Rent';
+            btn.disabled = false;
+        }
+      });
+    }
+
+    async function initCalendar(id) {
+        const calEl = document.getElementById('availability-calendar');
+        if (!calEl) return;
+
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/api/tools/${id}/availability/`);
+            const data = await response.json();
+
+            const calendar = new FullCalendar.Calendar(calEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: ''
+                },
+                events: data.events,
+                themeSystem: 'standard',
+                height: 'auto',
+                businessHours: true,
+                dayMaxEvents: true 
+            });
+
+            calendar.render();
+        } catch (e) {
+            calEl.innerHTML = '<div style="color:red; padding:20px; text-align:center;">Failed to load availability calendar.</div>';
+        }
+    }
+  </script>
+</body>
+</html>

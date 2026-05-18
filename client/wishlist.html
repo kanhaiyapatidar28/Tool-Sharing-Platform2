@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wishlist — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <style>
+    .wishlist-page {
+      padding: 120px 0 80px;
+      background: var(--color-surface);
+      min-height: 80vh;
+    }
+    .wishlist-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .wishlist-header {
+      margin-bottom: 48px;
+    }
+    .wishlist-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 3rem;
+      text-transform: uppercase;
+    }
+    .wishlist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <section class="wishlist-page">
+    <div class="container wishlist-container">
+      <div class="wishlist-header">
+        <h1>My Wishlist</h1>
+        <p style="color:var(--color-text-3);">Tools you've saved for your future projects.</p>
+      </div>
+
+      <div class="wishlist-grid" id="wishlist-grid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { renderNavbar, renderFooter, initNavbarScroll, renderToolCard } from './js/components.js';
+    import { fetchWishlist, checkAuth } from './js/data_v2.js';
+
+    async function init() {
+      const loggedIn = await checkAuth();
+      if (!loggedIn) {
+        window.location.href = 'login.html';
+        return;
+      }
+      document.getElementById('navbar-root').innerHTML = renderNavbar('wishlist');
+      document.getElementById('footer-root').innerHTML = renderFooter();
+      initNavbarScroll();
+
+      const grid = document.getElementById('wishlist-grid');
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;">Loading your favorites...</div>';
+
+      try {
+        const wishlistTools = await fetchWishlist();
+        if (wishlistTools.length === 0) {
+          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:100px 0;">
+            <div style="font-size:60px; margin-bottom:24px;">🧡</div>
+            <h2 style="font-family:'Oswald',sans-serif; text-transform:uppercase;">Your wishlist is empty</h2>
+            <a href="browse.html" class="btn btn--primary" style="margin-top:24px;">Explore Tools</a>
+          </div>`;
+        } else {
+          grid.innerHTML = wishlistTools.map(t => renderToolCard(t)).join('');
+        }
+      } catch (error) {
+        grid.innerHTML = `<div style="color:var(--color-error); text-align:center;">Failed to load wishlist: ${error.message}</div>`;
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

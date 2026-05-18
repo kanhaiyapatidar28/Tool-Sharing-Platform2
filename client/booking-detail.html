@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Details — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/booking.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <main class="booking-page">
+    <div class="booking-layout" id="booking-layout">
+      <!-- Filled by JS -->
+    </div>
+  </main>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { 
+        BOOKINGS, MESSAGES, CURRENT_USER, 
+        formatCurrency, formatDate, getInitials, getCategoryLabel,
+        updateBookingStatus, addMessage, addReview
+    } from './js/data_v2.js';
+
+    import { 
+        renderNavbar, renderFooter, renderStatusPill, renderAvatar, renderPriceBreakdown, renderStars, 
+        initNavbarScroll, initToasts, showToast 
+    } from './js/components.js';
+
+    if (localStorage.getItem('ts_logged_in') !== 'true') {
+      window.location.href = 'login.html';
+    }
+
+    document.getElementById('navbar-root').innerHTML = renderNavbar('');
+    document.getElementById('footer-root').innerHTML = renderFooter();
+    initNavbarScroll();
+    initToasts();
+
+    const params = new URLSearchParams(window.location.search);
+    const bookingId = params.get('id') || 'b1';
+    
+    // Refresh function to reload booking data
+    function renderBookingPage() {
+        const booking = BOOKINGS.find(b => b.id === bookingId) || BOOKINGS[0];
+        const tool = booking.tool;
+        const borrower = booking.borrower;
+        const owner = booking.owner;
+        const isOwner = CURRENT_USER.id === owner?.id;
+        const messages = MESSAGES.filter(m => m.bookingId === booking.id);
+
+        const statusConfig = {
+          PENDING:   { icon: '⏳', text: 'Awaiting owner approval', class: 'pending' },
+          APPROVED:  { icon: '✅', text: 'Booking confirmed! Pickup details below.', class: 'approved' },
+          ACTIVE:    { icon: '🔧', text: 'Tool is currently rented out.', class: 'active' },
+          COMPLETED: { icon: '✓', text: 'Rental completed. Thanks!', class: 'completed' },
+          CANCELLED: { icon: '✕', text: 'This booking was cancelled.', class: 'cancelled' },
+        };
+
+        const sc = statusConfig[booking.status];
+        const layout = document.getElementById('booking-layout');
+
+        layout.innerHTML = `
+          <!-- Status Banner -->
+          <div class="status-banner status-banner--${sc.class}">
+            <span style="font-size:1.2rem;">${sc.icon}</span>
+            ${sc.text}
+          </div>
+
+          <!-- LEFT COLUMN -->
+          <div>
+            <!-- Booking Summary -->
+            <div class="booking-summary">
+              <div class="booking-summary__tool">
+                <img src="${tool?.photos[0]}" class="booking-summary__tool-img" alt="${tool?.title}">
+                <div>
+                  <div class="booking-summary__tool-name">${tool?.title}</div>
+                  <div style="font-size:13px;color:var(--color-text-3);margin-bottom:4px;">${getCategoryLabel(tool?.category)} · ${tool?.city}</div>
+                  ${renderStatusPill(booking.status)}
+                </div>
+              </div>
+
+              <div class="booking-summary__detail-grid">
+                <div class="booking-summary__detail">
+                  <span class="booking-summary__detail-label">Start Date</span>
+                  <span class="booking-summary__detail-value">${formatDate(booking.startDate)}</span>
+                </div>
+                <div class="booking-summary__detail">
+                  <span class="booking-summary__detail-label">End Date</span>
+                  <span class="booking-summary__detail-value">${formatDate(booking.endDate)}</span>
+                </div>
+                <div class="booking-summary__detail">
+                  <span class="booking-summary__detail-label">Duration</span>
+                  <span class="booking-summary__detail-value">${booking.totalDays} day${booking.totalDays > 1 ? 's' : ''}</span>
+                </div>
+                <div class="booking-summary__detail">
+                  <span class="booking-summary__detail-label">Delivery</span>
+                  <span class="booking-summary__detail-value">${booking.deliveryType === 'PICKUP' ? '🏠 Pickup' : '🚚 Delivery'}</span>
+                </div>
+              </div>
+
+              <!-- Price breakdown -->
+              <div style="margin-top:20px;">
+                ${renderPriceBreakdown(booking.dailyRate, booking.totalDays, booking.depositPaid, booking.deliveryType === 'DELIVERY' ? 100 : 0)}
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="booking-actions">
+              ${booking.status === 'PENDING' && isOwner ? `
+                <button class="btn btn--primary btn--lg" onclick="handleBookingAction('APPROVED')">✅ Accept Booking</button>
+                <button class="btn btn--outline btn--lg" onclick="handleBookingAction('CANCELLED')">✕ Decline</button>
+              ` : booking.status === 'APPROVED' && isOwner ? `
+                <button class="btn btn--primary btn--lg" onclick="handleBookingAction('ACTIVE')">🔧 Mark as Active</button>
+              ` : booking.status === 'ACTIVE' && isOwner ? `
+                <button class="btn btn--primary btn--lg" onclick="handleBookingAction('COMPLETED')">✓ Mark as Completed</button>
+              ` : booking.status === 'PENDING' && !isOwner ? `
+                <button class="btn btn--outline btn--lg" onclick="handleBookingAction('CANCELLED')" style="color:var(--color-error);border-color:var(--color-error);">Cancel Booking</button>
+              ` : ''}
+            </div>
+
+            <!-- Participants -->
+            <div class="participant-card">
+              <div class="participant-card__role">Owner</div>
+              <div class="participant-card__header">
+                ${renderAvatar(owner, 'lg')}
+                <div style="flex:1;">
+                  <div style="font-weight:700;">${owner?.name} ${owner?.isVerified ? '✅' : ''}</div>
+                  <div style="font-size:13px;color:var(--color-text-3);">
+                    ${renderStars(owner?.rating || 5, null, 'sm')}
+                  </div>
+                  ${booking.status !== 'PENDING' ? `<div style="font-size:13px;color:var(--color-text-3);margin-top:4px;">📞 ${owner?.phone || '+91 9876543210'}</div>` : ''}
+                </div>
+              </div>
+              <div style="margin-top:12px;">
+                <a href="profile.html?id=${owner?.id}" class="btn btn--ghost btn--sm btn--full">View Owner Profile</a>
+              </div>
+            </div>
+
+            <div class="participant-card">
+              <div class="participant-card__role">Borrower</div>
+              <div class="participant-card__header">
+                ${renderAvatar(borrower, 'lg')}
+                <div style="flex:1;">
+                  <div style="font-weight:700;">${borrower?.name} ${borrower?.isVerified ? '✅' : ''}</div>
+                  <div style="font-size:13px;color:var(--color-text-3);">
+                    ${renderStars(borrower?.rating || 5, null, 'sm')}
+                  </div>
+                  ${booking.status !== 'PENDING' && isOwner ? `<div style="font-size:13px;color:var(--color-text-3);margin-top:4px;">📞 ${borrower?.phone || '+91 9123456789'}</div>` : ''}
+                </div>
+              </div>
+              <div style="margin-top:12px;">
+                <a href="profile.html?id=${borrower?.id}" class="btn btn--ghost btn--sm btn--full">View Borrower Profile</a>
+              </div>
+            </div>
+
+            ${booking.status === 'COMPLETED' ? `
+              <div class="review-form" id="review-container">
+                <h3 class="review-form__title">How was your experience?</h3>
+                <div class="review-form__stars" id="review-stars">
+                  ${[1,2,3,4,5].map(i => `<span class="review-form__star" data-rating="${i}">★</span>`).join('')}
+                </div>
+                <div class="input-group" style="margin-bottom:16px;">
+                  <textarea class="textarea" id="review-comment" placeholder="Share your experience..." style="min-height:80px;"></textarea>
+                </div>
+                <button class="btn btn--primary" id="submit-review">Submit Review</button>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- RIGHT COLUMN — Chat -->
+          <div>
+            <div class="chat-panel">
+              <div class="chat-panel__header">
+                <h3>💬 Messages</h3>
+                <p>Booking #${booking.id.toUpperCase()}</p>
+              </div>
+              <div class="chat-panel__messages" id="chat-messages">
+                ${messages.length > 0 ? messages.map(m => {
+                  const isMine = m.senderId === CURRENT_USER.id;
+                  const time = new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                  return `
+                    <div class="chat-msg chat-msg--${isMine ? 'mine' : 'theirs'}">
+                      ${m.content}
+                      <div class="chat-msg__time">${time}</div>
+                    </div>
+                  `;
+                }).join('') : `
+                  <div style="text-align:center;padding:40px 20px;color:var(--color-text-4);">
+                    <div style="font-size:2rem;margin-bottom:8px;">💬</div>
+                    <p style="font-size:14px;">No messages yet.</p>
+                  </div>
+                `}
+              </div>
+              <div class="chat-panel__input">
+                <input type="text" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')handleSendMessage()">
+                <button class="chat-panel__send" onclick="handleSendMessage()">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Initialize Chat Scroll
+        const chatBox = document.getElementById('chat-messages');
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+        // Initialize Review Stars
+        initReviewLogic();
+    }
+
+    renderBookingPage();
+
+    // Booking actions with real persistence
+    window.handleBookingAction = function(newStatus) {
+        updateBookingStatus(bookingId, newStatus);
+        const labels = { APPROVED: 'Accepted!', ACTIVE: 'Marked Active', COMPLETED: 'Completed!', CANCELLED: 'Cancelled' };
+        showToast('success', labels[newStatus], 'Status updated and saved.');
+        renderBookingPage();
+    };
+
+    // Chat persistence
+    window.handleSendMessage = function() {
+      const input = document.getElementById('chat-input');
+      const content = input.value.trim();
+      if (!content) return;
+
+      addMessage(bookingId, content);
+      input.value = '';
+      renderBookingPage();
+    };
+
+    // Review logic
+    function initReviewLogic() {
+        const stars = document.querySelectorAll('.review-form__star');
+        let selectedRating = 0;
+        
+        stars.forEach(star => {
+          star.addEventListener('mouseenter', () => {
+            const rating = parseInt(star.dataset.rating);
+            stars.forEach(s => s.classList.toggle('review-form__star--filled', parseInt(s.dataset.rating) <= rating));
+          });
+          star.addEventListener('click', () => {
+            selectedRating = parseInt(star.dataset.rating);
+          });
+        });
+
+        const starsContainer = document.getElementById('review-stars');
+        if (starsContainer) {
+          starsContainer.addEventListener('mouseleave', () => {
+            stars.forEach(s => s.classList.toggle('review-form__star--filled', parseInt(s.dataset.rating) <= selectedRating));
+          });
+        }
+
+        const submitBtn = document.getElementById('submit-review');
+        if (submitBtn) {
+          submitBtn.addEventListener('click', () => {
+            if (selectedRating === 0) { showToast('warning', 'Select rating', 'Please select stars'); return; }
+            const comment = document.getElementById('review-comment').value;
+            
+            addReview(bookingId, selectedRating, comment);
+            
+            showToast('success', 'Review submitted!', 'Thank you!');
+            document.getElementById('review-container').innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-success);font-weight:600;">✓ Review Submitted</div>';
+          });
+        }
+    }
+  </script>
+</body>
+</html>
+  </script>
+</body>
+</html>

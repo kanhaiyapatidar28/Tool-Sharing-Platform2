@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Renter Dashboard — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard.css?v=2">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="dash-body">
+  <div id="navbar-root"></div>
+  <div class="dashboard-wrapper">
+    <div class="dashboard-container">
+      <aside class="dash-sidebar">
+        <div class="dash-sidebar__profile">
+          <div id="dash-avatar-container" style="margin-bottom:12px;"></div>
+          <div class="dash-sidebar__name" id="dash-name"></div>
+          <div class="dash-sidebar__role">Renter <span class="badge badge--blue" style="font-size:10px;">Pro</span></div>
+        </div>
+        <nav class="dash-nav">
+          <button class="dash-nav__item dash-nav__item--active" onclick="showTab('rentals')">⏱️ Active Rentals</button>
+          <button class="dash-nav__item" onclick="showTab('wishlist')">❤️ Wishlist</button>
+          <button class="dash-nav__item" onclick="showTab('messages')">💬 Messages</button>
+        </nav>
+      </aside>
+
+      <main class="dash-main">
+        <!-- Active Rentals Tab -->
+        <div id="tab-rentals" class="tab-content" style="display:block;">
+          <h1 class="dash-main__title">Active Rentals</h1>
+          <p class="dash-main__subtitle">Manage your current rentals and track usage.</p>
+          <div id="rentals-container">Loading...</div>
+        </div>
+
+        <!-- Wishlist Tab -->
+        <div id="tab-wishlist" class="tab-content" style="display:none;">
+          <h1 class="dash-main__title">My Wishlist</h1>
+          <div class="tool-grid" id="wishlist-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top:24px;">Loading...</div>
+        </div>
+
+        <!-- Messages Tab -->
+        <div id="tab-messages" class="tab-content" style="display:none;">
+          <h1 class="dash-main__title">Messages</h1>
+          <div class="messages-container" style="display:flex; height:500px; background:white; border-radius:16px; overflow:hidden; border:1px solid #eee;">
+            <div class="conversations-list" id="conv-list" style="width:300px; border-right:1px solid #eee; overflow-y:auto;"></div>
+            <div class="chat-area" style="flex:1; display:flex; flex-direction:column;">
+               <div id="chat-header" style="padding:16px; border-bottom:1px solid #eee; font-weight:700;">Select a conversation</div>
+               <div id="chat-history" style="flex:1; padding:20px; overflow-y:auto; background:#fcfcfc; display:flex; flex-direction:column; gap:12px;"></div>
+               <div id="chat-input-area" style="padding:16px; border-top:1px solid #eee; display:none; gap:12px;">
+                  <input type="text" id="msg-input" placeholder="Type a message..." style="flex:1; padding:10px; border:1px solid #ddd; border-radius:12px;">
+                  <button class="btn btn--primary" id="send-msg-btn">Send</button>
+               </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+  <!-- QR Scan Modal -->
+  <div id="scan-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:40px; border-radius:32px; text-align:center; max-width:500px; width:90%; position:relative;">
+      <button onclick="document.getElementById('scan-modal').style.display='none'; if(window.scanner) window.scanner.stop();" style="position:absolute; top:20px; right:20px; border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+      <h2 style="margin-bottom:8px;">Scan Handover QR</h2>
+      <p style="color:#666; font-size:14px; margin-bottom:24px;">Point your camera at the owner's screen.</p>
+      <div id="reader" style="width:100%; border-radius:16px; overflow:hidden;"></div>
+    </div>
+  </div>
+
+    </div>
+  </div>
+
+  <div id="toast-container-root"></div>
+
+  <!-- Mock Payment Overlay -->
+  <div id="mock-payment" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9000; align-items:center; justify-content:center;">
+      <div style="background:white; padding:32px; border-radius:24px; text-align:center; max-width:400px; width:100%;">
+          <h3>Processing Payment</h3>
+          <p id="payment-desc" style="color:#666; margin:16px 0;">Authorizing secure transaction...</p>
+          <div class="spinner" id="payment-spinner" style="border-top-color:var(--color-primary); width:40px; height:40px; margin:24px auto;"></div>
+      </div>
+  </div>
+
+  <script type="module">
+    import { CURRENT_USER, checkAuth, fetchTools, fetchBookings, updateBookingStatus, formatCurrency, fetchMessages, sendMessage, toggleWishlist, fetchWishlist } from './js/data_v2.js';
+    import { renderNavbar, renderAvatar, initToasts, showToast, renderStatusPill, renderReviewItem, renderChatbot } from './js/components.js';
+    import { initChatbotLogic } from './js/chatbot.js';
+
+    async function init() {
+      const loggedIn = await checkAuth();
+      if (!loggedIn) { window.location.href = 'login.html'; return; }
+      
+      document.getElementById('navbar-root').innerHTML = renderNavbar('dashboard');
+      initToasts();
+
+      // Inject Chatbot
+      document.body.insertAdjacentHTML('beforeend', renderChatbot());
+      initChatbotLogic();
+
+      document.getElementById('dash-avatar-container').innerHTML = renderAvatar(CURRENT_USER, 'xl');
+      document.getElementById('dash-name').textContent = CURRENT_USER.name;
+
+      window.showTab = function(tabId) {
+         document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+         document.querySelectorAll('.dash-nav__item').forEach(el => el.classList.remove('dash-nav__item--active'));
+         document.getElementById('tab-' + tabId).style.display = 'block';
+         event.currentTarget.classList.add('dash-nav__item--active');
+         if(tabId === 'rentals') loadRentals();
+         if(tabId === 'wishlist') loadWishlist();
+         if(tabId === 'messages') loadConversations();
+      };
+
+      loadRentals();
+    }
+
+    async function loadRentals() {
+      try {
+          const bookings = await fetchBookings();
+          // Filter for tools I AM BORROWING
+          const myRentals = bookings.filter(b => b.borrowerId == CURRENT_USER.id);
+          
+          const c = document.getElementById('rentals-container');
+          c.innerHTML = myRentals.map(b => `
+            <div style="background:white; margin-bottom:24px; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.05); border:1px solid #eaeaea;">
+               <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eaeaea; padding-bottom:16px; margin-bottom:16px;">
+                   <div style="display:flex; gap:16px;">
+                       <img src="${b.toolPhoto || 'https://via.placeholder.com/60'}" style="width:80px; height:80px; border-radius:12px; object-fit:cover;">
+                       <div>
+                           <h3 style="font-size:18px; margin:0 0 4px 0;">${b.toolTitle}</h3>
+                           <div style="color:#666; font-size:14px;">Owner: ${b.ownerName || 'Owner'}</div>
+                           <div style="margin-top:8px;">${renderStatusPill(b.status)}</div>
+                       </div>
+                   </div>
+                   <div style="text-align:right;">
+                       ${b.status === 'CONFIRMED' ? `
+                           ${!b.agreementAccepted ? `
+                               <div style="font-size:14px; color:#666; margin-bottom:8px;">Legal agreement requires signature</div>
+                               <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                   <button class="btn btn--outline" onclick="window.open(getContractUrl('${b.id}'), '_blank')">Review</button>
+                                   <button class="btn btn--primary" onclick="handleSignAgreement('${b.id}')">Sign Now</button>
+                               </div>
+                           ` : `
+                               <div style="font-size:14px; color:var(--color-success); margin-bottom:8px;">✓ Agreement Signed</div>
+                               <button class="btn btn--primary" onclick="startScanner('${b.id}')">Scan QR to Start</button>
+                           `}
+                       ` : ''}
+                       ${b.status === 'APPROVED' ? `
+                           <div style="font-size:14px; color:#666; margin-bottom:8px;">Deposit required to start rental</div>
+                           <button class="btn btn--primary" onclick="handleDeposit('${b.id}')">Pay Deposit</button>
+                       ` : ''}
+                       ${b.status === 'RENTED' ? `
+                           <div style="color:red; font-family:monospace; font-size:18px; font-weight:bold; margin-bottom:12px;" id="timer-${b.id}">00:00:00 elapsed</div>
+                           <button class="btn btn--outline" onclick="handleReturn('${b.id}')">Return Tool</button>
+                       ` : ''}
+                       ${b.status === 'RETURNED' ? `
+                           <div style="font-size:14px; color:#666; margin-bottom:8px;">Final Payment Due</div>
+                           <button class="btn btn--primary" onclick="handlePayBalance('${b.id}')">Pay Balance</button>
+                       ` : ''}
+                   </div>
+               </div>
+            </div>
+          `).join('') || '<div class="empty-state">No active rentals</div>';
+
+          // Initialize timers for RENTED
+          myRentals.filter(b=>b.status==='RENTED').forEach(b => {
+              // Mock start time if missing (simulate 3 days ago for test data if empty)
+              const start = b.actualStartTime ? new Date(b.actualStartTime) : new Date(Date.now() - 3 * 86400000);
+              const timerEl = document.getElementById('timer-' + b.id);
+              setInterval(() => {
+                  const diff = Math.floor((Date.now() - start.getTime()) / 1000);
+                  const hh = String(Math.floor(diff / 3600)).padStart(2, '0');
+                  const mm = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+                  const ss = String(diff % 60).padStart(2, '0');
+                  timerEl.textContent = `${hh}h ${mm}m ${ss}s elapsed`;
+              }, 1000);
+          });
+      } catch (e) {
+          showToast('error', 'Error', e.message);
+      }
+    }
+
+    async function loadWishlist() {
+      try {
+          const list = await fetchWishlist(); // Mock wishlist endpoint
+          const c = document.getElementById('wishlist-container');
+          c.innerHTML = list.map(t => `
+            <div class="tool-card">
+              <a href="tool-detail.html?id=${t.id}">
+                <img src="${t.photos[0]}" class="tool-card__img" style="height:180px;">
+                <button class="tool-card__fav tool-card__fav--active">❤️</button>
+              </a>
+              <div class="tool-card__content">
+                <h3 class="tool-card__title">${t.title}</h3>
+                <div class="tool-card__price"><strong>${formatCurrency(t.pricePerDay)}</strong> / day</div>
+              </div>
+            </div>
+          `).join('') || '<div class="empty-state">No items in your wishlist</div>';
+      } catch (e) {
+          document.getElementById('wishlist-container').innerHTML = '<div class="empty-state">Failed to load</div>';
+      }
+    }
+
+    // Mock Payment System
+    function showPayment(desc, onSuccess) {
+        document.getElementById('mock-payment').style.display = 'flex';
+        document.getElementById('payment-desc').textContent = desc;
+        setTimeout(() => {
+            document.getElementById('mock-payment').style.display = 'none';
+            onSuccess();
+        }, 2000); // Wait 2s
+    }
+
+    window.handleDeposit = function(id) {
+        window.location.href = `payment.html?bookingId=${id}&paymentType=deposit`;
+    }
+
+    window.handleReturn = async function(id) {
+        try {
+            const data = await finalizeReturn(id);
+            // data contains dynamic final price
+            showToast('info', 'Return Processed', 'Please pay the final balance of ' + formatCurrency(data.final_payment));
+            loadRentals(); // Will show "Pay Balance" immediately
+        } catch(e) { showToast('error', 'Return Failed', e.message); }
+    }
+
+    window.handlePayBalance = function(id) {
+        window.location.href = `payment.html?bookingId=${id}&paymentType=balance`;
+    }
+
+    window.handleSignAgreement = async function(id) {
+        if (!confirm("By clicking OK, you agree to the Digital Rental Agreement and legally bind yourself to the terms of use.")) return;
+        try {
+            await signAgreement(id);
+            showToast('success', 'Signed!', 'Digital agreement recorded. You can now scan the QR code for handover.');
+            loadRentals();
+        } catch(e) { showToast('error', 'Signing Failed', e.message); }
+    }
+
+    let activeBookingId = null;
+
+    async function loadConversations() {
+      const bookings = await fetchBookings();
+      const c = document.getElementById('conv-list');
+      // Filter for tools I AM BORROWING
+      const myConvs = bookings.filter(b => b.borrowerId == CURRENT_USER.id);
+
+      c.innerHTML = myConvs.map(b => `
+        <div class="conv-item" onclick="selectConversation('${b.id}', '${b.ownerName || 'Owner'}', '${b.toolTitle}')" style="padding:16px; border-bottom:1px solid #eee; cursor:pointer;">
+           <div style="font-weight:700; font-size:14px;">${b.ownerName || 'Owner'}</div>
+           <div style="font-size:12px; color:#666;">${b.toolTitle}</div>
+        </div>
+      `).join('') || '<div style="padding:20px; color:#999; text-align:center;">No conversations</div>';
+    }
+
+    window.selectConversation = async (id, name, tool) => {
+       activeBookingId = id;
+       document.getElementById('chat-header').textContent = `Chat with ${name} (${tool})`;
+       document.getElementById('chat-input-area').style.display = 'flex';
+       loadMessages();
+    };
+
+    async function loadMessages() {
+       if(!activeBookingId) return;
+       const msgs = await fetchMessages(activeBookingId);
+       const h = document.getElementById('chat-history');
+       h.innerHTML = msgs.map(m => `
+         <div style="align-self: ${m.isMine ? 'flex-end' : 'flex-start'}; background: ${m.isMine ? 'var(--color-primary)' : 'white'}; color: ${m.isMine ? 'white' : 'black'}; padding: 10px 14px; border-radius: 14px; max-width: 80%; border: ${m.isMine ? 'none' : '1px solid #eee'};">
+            ${m.content}
+         </div>
+       `).join('');
+       h.scrollTop = h.scrollHeight;
+    }
+
+    document.getElementById('send-msg-btn').onclick = async () => {
+       const input = document.getElementById('msg-input');
+       if(!input.value.trim() || !activeBookingId) return;
+       try {
+          await sendMessage(activeBookingId, input.value.trim());
+          input.value = '';
+          loadMessages();
+       } catch(e) { showToast('error', 'Failed to send', e.message); }
+    };
+
+    window.startScanner = function(bookingId) {
+        document.getElementById('scan-modal').style.display = 'flex';
+        const feedback = document.getElementById('scan-feedback');
+        feedback.textContent = 'Initializing camera...';
+
+        window.scanner = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        window.scanner.start({ facingMode: "environment" }, config, async (decodedText) => {
+            // Found QR!
+            feedback.textContent = 'QR Detected! Verifying...';
+            window.scanner.stop();
+            
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/bookings/verify-qr/', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Token ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ token: decodedText })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                
+                showToast('success', 'Rental Started!', 'Handover confirmed. Billing timer is live.');
+                closeScanner();
+                renderBookings();
+            } catch (e) {
+                showToast('error', 'Verification Failed', e.message);
+                feedback.textContent = 'Error: ' + e.message;
+            }
+        });
+    }
+
+    window.closeScanner = function() {
+        if (window.scanner) window.scanner.stop();
+        document.getElementById('scan-modal').style.display = 'none';
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <style>
+    .notif-page {
+      padding: 120px 0 80px;
+      background: var(--color-surface);
+      min-height: 80vh;
+    }
+    .notif-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .notif-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+    .notif-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2.5rem;
+      text-transform: uppercase;
+    }
+    .notif-list {
+      display: grid;
+      gap: 16px;
+    }
+    .notif-item {
+      background: white;
+      padding: 24px;
+      border-radius: 20px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: transform 0.2s;
+    }
+    .notif-item--unread {
+      border-left: 4px solid var(--color-vibrant-orange);
+    }
+    .notif-item:hover {
+      transform: translateY(-2px);
+    }
+    .notif-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--color-slate-bg);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+    }
+    .notif-content {
+      flex: 1;
+    }
+    .notif-msg {
+      font-weight: 600;
+      color: var(--color-dark-text);
+      margin-bottom: 4px;
+    }
+    .notif-time {
+      font-size: 13px;
+      color: var(--color-text-3);
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <section class="notif-page">
+    <div class="container notif-container">
+      <div class="notif-header">
+        <h1>Notifications</h1>
+        <button class="btn btn--ghost" style="font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:12px;">Mark all as read</button>
+      </div>
+
+      <div class="notif-list">
+        <!-- Mock Notifications for now -->
+        <div class="notif-item notif-item--unread">
+          <div class="notif-icon">📥</div>
+          <div class="notif-content">
+            <div class="notif-msg">You have a new rental request for your <b>Bosch Hammer Drill</b></div>
+            <div class="notif-time">2 minutes ago</div>
+          </div>
+          <a href="dashboard.html#requests" class="btn btn--outline btn--sm" style="border-radius:10px; font-family:'Oswald',sans-serif; text-transform:uppercase;">View</a>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-icon">✅</div>
+          <div class="notif-content">
+            <div class="notif-msg">Booking #B-4521 has been <b>Approved</b></div>
+            <div class="notif-time">1 hour ago</div>
+          </div>
+          <a href="booking-detail.html?id=b2" class="btn btn--outline btn--sm" style="border-radius:10px; font-family:'Oswald',sans-serif; text-transform:uppercase;">View</a>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-icon">💬</div>
+          <div class="notif-content">
+            <div class="notif-msg">New message from <b>Amit Patel</b></div>
+            <div class="notif-time">3 hours ago</div>
+          </div>
+          <a href="dashboard.html#messages" class="btn btn--outline btn--sm" style="border-radius:10px; font-family:'Oswald',sans-serif; text-transform:uppercase;">Reply</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { renderNavbar, renderFooter, initNavbarScroll, renderNotificationItem } from './js/components.js';
+    import { checkAuth, fetchNotifications } from './js/data_v2.js';
+
+    async function init() {
+      const loggedIn = await checkAuth();
+      if (!loggedIn) {
+        window.location.href = 'login.html';
+        return;
+      }
+      document.getElementById('navbar-root').innerHTML = renderNavbar('notifications');
+      document.getElementById('footer-root').innerHTML = renderFooter();
+      initNavbarScroll();
+
+      const listContainer = document.querySelector('.notif-list');
+      try {
+        const notifs = await fetchNotifications();
+        if (notifs.length === 0) {
+          listContainer.innerHTML = '<div style="text-align:center; padding:100px 0; color:var(--color-text-3);">No notifications yet.</div>';
+        } else {
+          listContainer.innerHTML = notifs.map(n => renderNotificationItem(n)).join('');
+        }
+      } catch (e) {
+        listContainer.innerHTML = `<div style="color:var(--color-error); text-align:center;">Failed to load: ${e.message}</div>`;
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

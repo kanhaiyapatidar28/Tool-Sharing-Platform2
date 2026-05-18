@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Booking — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/booking.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+</head>
+<body class="booking-body">
+  <div id="navbar-root"></div>
+
+  <main class="booking-page">
+    <div class="container">
+      <div class="booking-grid">
+        <!-- Left: Steps & Forms -->
+        <div class="booking-flow">
+          <div class="booking-steps">
+            <div class="step step--active" data-step="1">1. Confirm Details</div>
+            <div class="step" data-step="2">2. Payment</div>
+            <div class="step" data-step="3">3. Success</div>
+          </div>
+
+          <div id="step-1-content">
+            <h1 class="booking-title">Confirm Your Booking</h1>
+            <div class="booking-card">
+              <h3 class="booking-card__title">Rental Period</h3>
+              <div class="date-picker-mock">
+                <div class="date-input">
+                  <label>Start Date</label>
+                  <input type="date" id="start-date" class="input" value="2025-04-20">
+                </div>
+                <div class="date-input">
+                  <label>End Date</label>
+                  <input type="date" id="end-date" class="input" value="2025-04-23">
+                </div>
+              </div>
+              
+              <h3 class="booking-card__title" style="margin-top:32px;">Notes for Owner</h3>
+              <textarea id="booking-notes" class="input" placeholder="Any special instructions or questions? (Optional)" style="height:100px; padding:16px;"></textarea>
+            </div>
+            
+            <button class="btn btn--primary btn--full" style="margin-top:24px; padding:20px; font-family:'Oswald',sans-serif; text-transform:uppercase;" onclick="goToStep(2)">Proceed to Payment</button>
+          </div>
+
+          <div id="step-2-content" style="display:none;">
+            <h1 class="booking-title">Payment Implementation</h1>
+            <div class="booking-card">
+              <p style="margin-bottom:24px; color:var(--color-text-3);">Choose your preferred payment method.</p>
+              
+              <div class="payment-methods">
+                <label class="payment-method">
+                  <input type="radio" name="pay" checked>
+                  <span class="pm-box">
+                    <span class="pm-icon">📱</span>
+                    <span class="pm-label">UPI (GPay, PhonePe)</span>
+                  </span>
+                </label>
+                <label class="payment-method">
+                  <input type="radio" name="pay">
+                  <span class="pm-box">
+                    <span class="pm-icon">💳</span>
+                    <span class="pm-label">Credit / Debit Card</span>
+                  </span>
+                </label>
+                <label class="payment-method">
+                  <input type="radio" name="pay">
+                  <span class="pm-box">
+                    <span class="pm-icon">🏦</span>
+                    <span class="pm-label">Net Banking</span>
+                  </span>
+                </label>
+              </div>
+
+              <div id="upi-details" style="margin-top:32px; padding:24px; background:rgba(0,0,0,0.03); border-radius:16px; text-align:center;">
+                <div style="font-size:12px; text-transform:uppercase; font-weight:700; color:rgba(0,0,0,0.4); margin-bottom:16px;">Scan to pay</div>
+                <div style="width:180px; height:180px; background:white; margin:0 auto 16px; border:2px solid #eee; display:flex; align-items:center; justify-content:center; font-size:40px;">QR</div>
+                <div style="font-weight:700; color:var(--color-dark-text);">toolshare@okbank</div>
+              </div>
+            </div>
+            
+            <button class="btn btn--primary btn--full" id="pay-btn" style="margin-top:24px; padding:20px; font-family:'Oswald',sans-serif; text-transform:uppercase;" onclick="handlePayment()">Confirm & Pay ₹4,485</button>
+            <button class="btn btn--ghost btn--full" style="margin-top:8px;" onclick="goToStep(1)">Back</button>
+          </div>
+
+          <div id="step-3-content" style="display:none; text-align:center; padding:60px 0;">
+            <div style="font-size:80px; margin-bottom:24px;">🎉</div>
+            <h1 class="booking-title">Booking Confirmed!</h1>
+            <p style="font-size:1.125rem; color:var(--color-text-3); margin-bottom:40px;">Your request has been sent to the owner. You'll be notified once they approve it.</p>
+            <div style="display:flex; justify-content:center; gap:16px;">
+              <a href="dashboard.html" class="btn btn--primary" style="padding:16px 32px; border-radius:12px; font-family:'Oswald',sans-serif; text-transform:uppercase;">Go to Dashboard</a>
+              <a href="index.html" class="btn btn--outline" style="padding:16px 32px; border-radius:12px; font-family:'Oswald',sans-serif; text-transform:uppercase;">Back to Home</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Summary Sidebar -->
+        <aside class="booking-sidebar">
+          <div id="tool-summary-card"></div>
+          <div id="price-breakdown-card" style="margin-top:24px;"></div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { renderNavbar, renderPriceBreakdown, showToast, initToasts } from './js/components.js';
+    import { TOOLS, CURRENT_USER, formatCurrency } from './js/data_v2.js';
+
+    initToasts();
+    document.getElementById('navbar-root').innerHTML = renderNavbar();
+
+    // Get tool ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const toolId = urlParams.get('id') || 't1';
+    const tool = TOOLS.find(t => t.id === toolId) || TOOLS[0];
+
+    function renderSummary() {
+      const toolCard = `
+        <div class="booking-card" style="padding:20px;">
+          <div style="display:flex; gap:16px; align-items:center;">
+            <img src="${tool.photos[0]}" style="width:100px; height:75px; border-radius:12px; object-fit:cover;">
+            <div>
+              <div style="font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:14px; font-weight:700; margin-bottom:4px;">${tool.title}</div>
+              <div style="font-size:12px; color:rgba(0,0,0,0.4);">by ${tool.owner?.name || 'Owner'}</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('tool-summary-card').innerHTML = toolCard;
+      document.getElementById('price-breakdown-card').innerHTML = renderPriceBreakdown(tool.pricePerDay, 3, tool.deposit);
+    }
+
+    renderSummary();
+
+    window.goToStep = function(n) {
+      document.querySelectorAll('[id^="step-"]').forEach(el => el.style.display = 'none');
+      document.getElementById(`step-${n}-content`).style.display = 'block';
+      
+      document.querySelectorAll('.step').forEach(el => {
+        const stepNum = parseInt(el.dataset.step);
+        el.classList.toggle('step--active', stepNum === n);
+        el.classList.toggle('step--done', stepNum < n);
+      });
+      window.scrollTo(0, 0);
+    };
+
+    window.handlePayment = function() {
+      const btn = document.getElementById('pay-btn');
+      btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:18px;height:18px;"></span> Processing...';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        goToStep(3);
+        showToast('success', 'Payment Successful', 'Your booking is confirmed.');
+      }, 2000);
+    };
+  </script>
+</body>
+</html>

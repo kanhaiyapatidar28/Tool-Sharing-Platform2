@@ -1,0 +1,407 @@
+/* ============================================
+   TOOLSHARE — Browse Page (Industrial Redesign)
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700;900&family=Inter:wght@400;600;700&display=swap');
+
+:root {
+  --color-slate-bg:       #4A5D67;
+  --color-dark-slate:     #2D3A42;
+  --color-cream-surface:  #F5F2ED;
+  --color-vibrant-orange: #FF6C19;
+  --color-dark-text:      #2D3A42;
+  --color-light-text:     #F5F2ED;
+  
+  --radius-huge: 4rem;
+  --radius-large: 2.5rem;
+  --radius-full: 9999px;
+  
+  --transition-base: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.browse-body {
+  background-color: var(--color-dark-slate);
+  font-family: 'Inter', sans-serif;
+  color: var(--color-dark-text);
+  overflow-x: hidden;
+}
+
+/* ---------- Page Wrapper ---------- */
+.page-wrapper-outer {
+  background: var(--color-dark-slate);
+  width: 100%;
+  padding-bottom: 60px;
+}
+
+.page-wrapper {
+  width: calc(100% - 20px);
+  max-width: 1800px;
+  margin: 10px auto;
+  background: var(--color-slate-bg);
+  border-radius: var(--radius-huge);
+  min-height: calc(100vh - 20px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 40px 120px rgba(0,0,0,0.5);
+  border: 4px solid var(--color-slate-bg);
+}
+
+/* ---------- Custom Navbar (Pill Style) ---------- */
+.nav-pill {
+  width: 100%;
+  padding: 40px 80px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+  position: relative;
+}
+
+.nav-links-pill {
+  display: flex;
+  background: var(--color-cream-surface);
+  backdrop-filter: blur(8px);
+  padding: 8px;
+  border-radius: var(--radius-full);
+  gap: 8px;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+}
+
+.nav-link-pill {
+  padding: 10px 24px;
+  border-radius: var(--radius-full);
+  color: var(--color-dark-text);
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.nav-link-pill:hover, .nav-link-pill.active {
+  background: rgba(0,0,0,0.05);
+  color: var(--color-vibrant-orange);
+}
+
+.nav-logo {
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-cream-surface);
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+}
+
+.nav-divider {
+  width: 1px;
+  background: rgba(0,0,0,0.1);
+  margin: 0 10px;
+  align-self: stretch;
+}
+
+.nav-actions-pill {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-list-tools {
+  background: var(--color-vibrant-orange);
+  color: white;
+  padding: 0 32px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn-list-tools:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 20px rgba(255, 108, 25, 0.3);
+}
+
+/* ---------- Browse Content Layout ---------- */
+.browse-page-header {
+  padding: 80px 80px 40px;
+  position: relative;
+  z-index: 10;
+}
+
+.browse-page-tag {
+  display: inline-block;
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--color-vibrant-orange);
+  margin-bottom: 12px;
+}
+
+.browse-page-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--color-cream-surface);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.browse-layout {
+  display: flex;
+  gap: 40px;
+  padding: 0 80px 80px;
+  position: relative;
+  z-index: 10;
+}
+
+/* ---------- Industrial Sidebar ---------- */
+.filter-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--color-cream-surface);
+  border-radius: var(--radius-large);
+  padding: 40px;
+  height: fit-content;
+  position: sticky;
+  top: 40px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.filter-header h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.filter-reset {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-vibrant-orange);
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-group {
+  margin-bottom: 32px;
+}
+
+.filter-group__title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(45, 58, 66, 0.4);
+  margin-bottom: 16px;
+}
+
+/* Custom Industrial Checkboxes */
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-dark-text);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.filter-checkbox:hover { color: var(--color-vibrant-orange); }
+
+.filter-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-vibrant-orange);
+  cursor: pointer;
+}
+
+/* Pill buttons */
+.filter-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter-pill {
+  padding: 8px 16px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-dark-text);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.filter-pill:hover { border-color: var(--color-vibrant-orange); color: var(--color-vibrant-orange); }
+.filter-pill--active { background: var(--color-vibrant-orange); border-color: var(--color-vibrant-orange); color: #fff; }
+
+/* Range */
+.filter-range {
+  width: 100%;
+  accent-color: var(--color-vibrant-orange);
+  margin-top: 12px;
+}
+
+/* ---------- Results Area ---------- */
+.results-area {
+  flex: 1;
+}
+
+.results-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  color: var(--color-cream-surface);
+}
+
+.results-count {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.results-count span { opacity: 0.5; font-weight: 400; font-size: 16px; margin-left: 8px; }
+
+.results-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sort-select {
+  background: rgba(245, 242, 237, 0.1);
+  border: 1px solid rgba(245, 242, 237, 0.2);
+  border-radius: 12px;
+  color: var(--color-cream-surface);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+}
+
+.sort-select option { background: var(--color-dark-slate); color: #fff; }
+
+/* Grid */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* Industrial Tool Card Override */
+.tool-card {
+  background: var(--color-cream-surface) !important;
+  border-radius: 28px !important;
+  padding: 12px !important;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  text-decoration: none !important;
+  display: block !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+}
+
+.tool-card:hover { transform: translateY(-8px) scale(1.02); }
+
+.tool-card__img-wrap {
+  border-radius: 20px !important;
+  overflow: hidden;
+  aspect-ratio: 1/1 !important;
+  position: relative;
+  background: #fff;
+}
+
+.tool-card__img { width: 100%; height: 100%; object-fit: contain; }
+
+.tool-card__badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+}
+
+.tool-card__body { padding: 20px 12px 12px; }
+
+.tool-card__category {
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-vibrant-orange);
+  margin-bottom: 8px;
+  letter-spacing: 0.1em;
+}
+
+.tool-card__title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-dark-text);
+  margin-bottom: 12px;
+}
+
+.tool-card__footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+.tool-card__price {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-dark-text);
+}
+
+.tool-card__price span { font-size: 13px; font-weight: 400; opacity: 0.5; }
+
+/* ---------- Active Filters ---------- */
+.active-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.active-filter {
+  background: var(--color-vibrant-orange);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-filter__remove { cursor: pointer; font-size: 14px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1400px) {
+  .results-grid { grid-template-columns: repeat(2, 1fr); }
+  .browse-page-header, .browse-layout { padding-left: 40px; padding-right: 40px; }
+}
+
+@media (max-width: 900px) {
+  .browse-layout { flex-direction: column; }
+  .filter-sidebar { width: 100%; position: relative; top: 0; }
+  .browse-page-title { font-size: 48px; }
+}
+
+@media (max-width: 600px) {
+  .results-grid { grid-template-columns: 1fr; }
+  .browse-page-header, .browse-layout { padding: 40px 20px; }
+}

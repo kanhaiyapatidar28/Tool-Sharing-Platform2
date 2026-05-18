@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Methods — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <style>
+    .payment-page {
+      padding: 120px 0 80px;
+      background: var(--color-surface);
+      min-height: 80vh;
+    }
+    .payment-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .payment-header {
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .payment-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2.5rem;
+      text-transform: uppercase;
+    }
+    .payment-methods-list {
+      display: grid;
+      gap: 16px;
+    }
+    .pm-item {
+      background: white;
+      padding: 24px;
+      border-radius: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    .pm-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .pm-icon {
+      font-size: 24px;
+    }
+    .pm-label {
+      font-weight: 700;
+      font-family: 'Oswald', sans-serif;
+      text-transform: uppercase;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <section class="payment-page">
+    <div class="container payment-container">
+      <div id="payment-checkout-view">
+        <div class="payment-header">
+          <h1>Secure Checkout</h1>
+          <p id="payment-booking-info" style="color:var(--color-text-3);">Finalize your booking.</p>
+        </div>
+
+        <div style="background:white; padding:40px; border-radius:32px; box-shadow:var(--shadow-xl);">
+           <div style="margin-bottom:32px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:24px;">FakeStripe</span>
+              <span style="font-size:12px; color:rgba(0,0,0,0.5);">Test Mode</span>
+           </div>
+
+           <div style="margin-bottom:24px;">
+              <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px; text-transform:uppercase;">Card Information</label>
+              <div style="padding:16px; border:1px solid var(--color-border); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+                 <span style="color:var(--color-dark-text);">4242 4242 4242 4242</span>
+                 <span style="font-size:12px; color:rgba(0,0,0,0.4);">12/28</span>
+              </div>
+           </div>
+
+           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px;">
+              <div>
+                 <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px; text-transform:uppercase;">CVV</label>
+                 <div style="padding:16px; border:1px solid var(--color-border); border-radius:12px; color:var(--color-dark-text);">***</div>
+              </div>
+              <div>
+                 <label style="display:block; font-size:12px; font-weight:700; margin-bottom:8px; text-transform:uppercase;">Postal Code</label>
+                 <div style="padding:16px; border:1px solid var(--color-border); border-radius:12px; color:var(--color-dark-text);">400001</div>
+              </div>
+           </div>
+
+           <button id="pay-btn" class="btn btn--primary btn--full" style="padding:20px; font-size:18px;">
+              Pay <span id="payment-amount">...</span>
+           </button>
+           
+           <div style="text-align:center; margin-top:20px; font-size:12px; color:rgba(0,0,0,0.4);">
+              🔒 SSL Encrypted Payment (Fake)
+           </div>
+        </div>
+      </div>
+
+      <div id="payment-success-view" style="display:none; text-align:center; padding:60px 0;">
+         <div style="font-size:80px; margin-bottom:24px;">🎉</div>
+         <h1 style="font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:3rem;">Payment Successful</h1>
+         <p style="margin-bottom:32px;">Your booking is now confirmed. The owner has been notified.</p>
+         <a href="dashboard.html#rents" class="btn btn--primary">View in Dashboard</a>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { renderNavbar, renderFooter, initNavbarScroll, showToast, initToasts } from './js/components.js';
+    import { checkAuth, confirmDeposit, payBalance, fetchBookings, formatCurrency } from './js/data_v2.js';
+
+    async function init() {
+      const loggedIn = await checkAuth();
+      if (!loggedIn) {
+        window.location.href = 'login.html';
+        return;
+      }
+      document.getElementById('navbar-root').innerHTML = renderNavbar('payment');
+      document.getElementById('footer-root').innerHTML = renderFooter();
+      initNavbarScroll();
+      initToasts();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const bookingId = urlParams.get('bookingId');
+      const paymentType = urlParams.get('paymentType'); // 'deposit' or 'balance'
+      
+      if (!bookingId) {
+         showToast('error', 'Error', 'No booking specified.');
+         setTimeout(() => window.location.href = 'renter-dashboard.html', 2000);
+         return;
+      }
+
+      // Fetch booking details
+      const bookings = await fetchBookings();
+      const booking = bookings.find(b => b.id == bookingId);
+
+      if (!booking) {
+         showToast('error', 'Error', 'Booking not found.');
+         return;
+      }
+
+      let amountToPay = 0;
+      let label = "Secure Payment";
+
+      if (paymentType === 'deposit') {
+          // Deposit is stored on the tool, but usually we just pay a fraction or the whole thing
+          // For simplicity, let's assume we pay 50% or a fixed deposit from the tool
+          amountToPay = 1000; // Mock deposit amount or fetch from tool if available
+          label = "Pay Security Deposit";
+          document.getElementById('payment-booking-info').innerHTML = `Pay Security Deposit for <b>${booking.toolTitle}</b> to start the rental.`;
+      } else {
+          amountToPay = booking.totalCost;
+          label = "Pay Final Balance";
+          document.getElementById('payment-booking-info').innerHTML = `Finalize balance for <b>${booking.toolTitle}</b>`;
+      }
+
+      document.getElementById('payment-amount').textContent = formatCurrency(amountToPay);
+      document.querySelector('.payment-header h1').textContent = label;
+
+      document.getElementById('pay-btn').addEventListener('click', async () => {
+         const btn = document.getElementById('pay-btn');
+         btn.disabled = true;
+         btn.textContent = 'Processing...';
+
+         try {
+            if (paymentType === 'deposit') {
+                await confirmDeposit(bookingId);
+            } else {
+                await payBalance(bookingId);
+            }
+            
+            document.getElementById('payment-checkout-view').style.display = 'none';
+            document.getElementById('payment-success-view').style.display = 'block';
+            showToast('success', 'Success', 'Payment completed!');
+         } catch (e) {
+            btn.disabled = false;
+            btn.textContent = `Pay ${formatCurrency(amountToPay)}`;
+            showToast('error', 'Payment Failed', e.message);
+         }
+      });
+    }
+
+    // Update success link
+    document.querySelector('#payment-success-view .btn').href = 'renter-dashboard.html';
+    
+    init();
+  </script>
+</body>
+</html>

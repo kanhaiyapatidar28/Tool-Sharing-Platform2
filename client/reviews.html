@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Your Experience — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <style>
+    .review-page {
+      padding: 120px 0 80px;
+      background: var(--color-surface);
+      min-height: 80vh;
+    }
+    .review-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .review-header {
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .review-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2.5rem;
+      text-transform: uppercase;
+    }
+    .review-form-card {
+      background: white;
+      padding: 40px;
+      border-radius: 32px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.02);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    .star-rating-input {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 24px 0 40px;
+    }
+    .star-rating-input button {
+      font-size: 40px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #eee;
+      transition: color 0.2s;
+    }
+    .star-rating-input button.active {
+      color: var(--color-vibrant-orange);
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <section class="review-page">
+    <div class="container review-container">
+      <div class="review-header">
+        <h1>Rate Your Experience</h1>
+        <p style="color:var(--color-text-3);">How was your rental with the <b>Bosch Hammer Drill</b>?</p>
+      </div>
+
+      <div class="review-form-card">
+        <div style="text-align:center; font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:14px; font-weight:700; color:rgba(0,0,0,0.4);">Your Rating</div>
+        <div class="star-rating-input" id="star-input">
+          <button data-val="1">★</button>
+          <button data-val="2">★</button>
+          <button data-val="3">★</button>
+          <button data-val="4">★</button>
+          <button data-val="5">★</button>
+        </div>
+
+        <div class="input-group">
+          <label style="font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:12px; color:rgba(0,0,0,0.4);">What did you like or dislike?</label>
+          <textarea class="input" placeholder="Share your experience with this tool and owner..." style="height:150px; padding:20px; border-radius:16px;"></textarea>
+        </div>
+
+        <button class="btn btn--primary btn--full" style="margin-top:32px; padding:20px; border-radius:16px; font-family:'Oswald',sans-serif; text-transform:uppercase;" onclick="submitReview()">Submit Review</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { renderNavbar, renderFooter, initNavbarScroll, showToast, initToasts } from './js/components.js';
+    initToasts();
+    document.getElementById('navbar-root').innerHTML = renderNavbar();
+    document.getElementById('footer-root').innerHTML = renderFooter();
+    initNavbarScroll();
+
+    let currentRating = 0;
+    const stars = document.querySelectorAll('#star-input button');
+    stars.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentRating = parseInt(btn.dataset.val);
+        stars.forEach((s, idx) => {
+          s.classList.toggle('active', idx < currentRating);
+        });
+      });
+    });
+
+    window.submitReview = function() {
+      if (currentRating === 0) {
+        showToast('error', 'Select a rating', 'Please select at least one star.');
+        return;
+      }
+      showToast('success', 'Review Submitted', 'Thank you for your feedback!');
+      setTimeout(() => window.location.href = 'dashboard.html', 1500);
+    };
+  </script>
+</body>
+</html>

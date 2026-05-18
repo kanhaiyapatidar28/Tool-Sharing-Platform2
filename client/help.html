@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help & Support — ToolShare</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <style>
+    .help-hero {
+      padding: 120px 0 60px;
+      background: var(--color-slate-bg);
+      color: white;
+      text-align: center;
+    }
+    .help-hero h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 3.5rem;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .search-big {
+      max-width: 600px;
+      margin: 40px auto 0;
+      position: relative;
+    }
+    .search-big input {
+      width: 100%;
+      padding: 24px 32px;
+      border-radius: 20px;
+      border: none;
+      font-size: 1.125rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .faq-section {
+      padding: 80px 0;
+      background: var(--color-surface);
+    }
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    .faq-card {
+      background: white;
+      padding: 32px;
+      border-radius: 24px;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    .faq-card h3 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.25rem;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      color: var(--color-dark-text);
+    }
+    .faq-card p {
+      color: var(--color-text-3);
+      line-height: 1.6;
+    }
+    .contact-cta {
+      padding: 80px 0;
+      text-align: center;
+    }
+    .contact-cta h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2.5rem;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <section class="help-hero">
+    <div class="container">
+      <h1 class="reveal-up">How can we help?</h1>
+      <div class="search-big reveal-up">
+        <input type="text" placeholder="Search for questions, guides, or support...">
+      </div>
+    </div>
+  </section>
+
+  <section class="faq-section">
+    <div class="container">
+      <h2 style="font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:2rem; margin-bottom:48px;">Frequently Asked Questions</h2>
+      <div class="faq-grid">
+        <div class="faq-card reveal">
+          <h3>How does insurance work?</h3>
+          <p>ToolShare provides basic coverage for tools listed on the platform. If a tool is damaged during a rental, you can file a claim through our protection program. We verify all borrowers to ensure your tools are in safe hands.</p>
+        </div>
+        <div class="faq-card reveal">
+          <h3>What if the tool isn't returned?</h3>
+          <p>We hold a security deposit for every booking. If a tool isn't returned, we use the deposit to compensate the owner. We also have a dedicated recovery team to handle such rare cases.</p>
+        </div>
+        <div class="faq-card reveal">
+          <h3>How do I get paid?</h3>
+          <p>Earnings are automatically credited to your ToolShare wallet after a booking is successfully completed. You can withdraw your balance to your bank account via UPI or direct transfer within 24 hours.</p>
+        </div>
+        <div class="faq-card reveal">
+          <h3>Are there any listing fees?</h3>
+          <p>No, listing tools on ToolShare is completely free! We only take a small service fee (10%) from the total booking amount to cover platform maintenance and insurance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact-cta">
+    <div class="container">
+      <h2>Still have questions?</h2>
+      <p style="margin-bottom:40px; font-size:1.125rem; color:var(--color-text-2);">Our support team is available 24/7 to help you with any issues.</p>
+      <div style="display:flex; justify-content:center; gap:20px;">
+        <button class="btn btn--primary" style="padding:16px 40px; border-radius:14px; font-family:'Oswald',sans-serif; text-transform:uppercase;">Chat with Support</button>
+        <button class="btn btn--outline" style="padding:16px 40px; border-radius:14px; font-family:'Oswald',sans-serif; text-transform:uppercase;">Email Us</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { renderNavbar, renderFooter, initNavbarScroll, initScrollReveal } from './js/components.js';
+    document.getElementById('navbar-root').innerHTML = renderNavbar('help');
+    document.getElementById('footer-root').innerHTML = renderFooter();
+    initNavbarScroll();
+    initScrollReveal();
+  </script>
+</body>
+</html>

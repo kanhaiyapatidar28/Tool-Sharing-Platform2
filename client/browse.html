@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Browse tools available for rent near you. Filter by category, price, condition, and distance.">
+  <title>Browse Collections — ToolShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/browse.css?v=3">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  
+  <!-- Leaflet Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+</head>
+<body class="browse-body">
+
+  <div class="page-wrapper-outer">
+    <div class="page-wrapper">
+      
+      <!-- ========== NAVBAR ========== -->
+      <div id="navbar-root"></div>
+
+      <!-- ========== BROWSE HEADER ========== -->
+      <div class="browse-page-header">
+        <div>
+          <span class="browse-page-tag">OUR INVENTORY</span>
+          <h1 class="browse-page-title">Browse Collections</h1>
+        </div>
+        <div class="search-wrap">
+          <input type="text" id="tool-search" placeholder="Search for drills, saws, ladders..." class="search-input">
+          <button class="search-btn" id="search-btn">🔍</button>
+        </div>
+      </div>
+
+      <main class="browse-layout">
+        <!-- Filter Sidebar -->
+        <aside class="filter-sidebar" id="filter-sidebar">
+          <div class="filter-header">
+            <h2>Filters</h2>
+            <button class="filter-reset" id="filter-reset">Reset All</button>
+          </div>
+
+          <!-- Category -->
+          <div class="filter-group">
+            <div class="filter-group__title">Category</div>
+            <label class="filter-checkbox" data-filter="category" data-value="POWER_TOOLS">
+              <input type="checkbox"> Power Tools
+            </label>
+            <label class="filter-checkbox" data-filter="category" data-value="HAND_TOOLS">
+              <input type="checkbox"> Hand Tools
+            </label>
+            <label class="filter-checkbox" data-filter="category" data-value="GARDEN">
+              <input type="checkbox"> Garden & Outdoor
+            </label>
+            <label class="filter-checkbox" data-filter="category" data-value="HEAVY_EQUIPMENT">
+              <input type="checkbox"> Heavy Equipment
+            </label>
+            <label class="filter-checkbox" data-filter="category" data-value="EVENTS">
+              <input type="checkbox"> Events & Party
+            </label>
+          </div>
+
+          <!-- Condition -->
+          <div class="filter-group">
+            <div class="filter-group__title">Condition</div>
+            <div class="filter-pills" id="condition-pills">
+              <button class="filter-pill" data-condition="LIKE_NEW">Like New</button>
+              <button class="filter-pill" data-condition="EXCELLENT">Excellent</button>
+              <button class="filter-pill" data-condition="GOOD">Good</button>
+              <button class="filter-pill" data-condition="FAIR">Fair</button>
+            </div>
+          </div>
+
+          <!-- Price Range -->
+          <div class="filter-group">
+            <div class="filter-group__title">Price Range (₹/day)</div>
+            <input type="range" class="filter-range" id="price-range" min="50" max="10000" value="10000" step="100">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(0,0,0,0.4);margin-top:8px;font-weight:700;">
+              <span>₹50</span><span id="price-label">₹10,000</span>
+            </div>
+            <input type="hidden" id="min-price" value="">
+            <input type="hidden" id="max-price" value="10000">
+          </div>
+
+          <!-- Distance -->
+          <div class="filter-group">
+            <div class="filter-group__title">Distance</div>
+            <input type="range" class="filter-range" id="distance-range" min="1" max="50" value="25">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(0,0,0,0.4);margin-top:8px;font-weight:700;">
+              <span>1 km</span><span id="distance-label">25 km</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Results Area -->
+        <div class="results-area">
+          <div class="results-header">
+            <div class="results-count" id="results-count">
+              Loading...
+            </div>
+            <div class="results-controls">
+              <button id="toggle-map" class="btn btn--outline" style="margin-right:12px; padding:8px 16px;">🗺️ Show Map</button>
+              <select class="sort-select" id="sort-select">
+                <option value="newest">Newest First</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="distance">Distance</option>
+                <option value="rating">Top Rated</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Active filters -->
+          <div class="active-filters" id="active-filters"></div>
+
+          <div id="map-view" style="display:none; height:500px; border-radius:24px; margin-bottom:32px; overflow:hidden; border:1px solid var(--color-border); position:relative;">
+              <div id="map" style="height:100%; width:100%;"></div>
+              <div style="position:absolute; bottom:20px; left:20px; z-index:1000; background:white; padding:10px 16px; border-radius:12px; box-shadow:var(--shadow-md); font-size:12px; font-weight:700;">
+                  🔥 HEATMAP ACTIVE
+              </div>
+          </div>
+
+          <div class="results-grid" id="results-grid">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <div id="footer-root"></div>
+
+  <script type="module">
+    import { fetchTools, CATEGORIES, getConditionInfo, getCategoryLabel, formatCurrency } from './js/data_v2.js';
+    import { renderNavbar, renderFooter, renderToolCard, renderSkeletonCard, initToasts, showToast, renderChatbot } from './js/components.js';
+    import { initChatbotLogic } from './js/chatbot.js';
+
+    // Render Navbar
+    document.getElementById('navbar-root').innerHTML = renderNavbar('browse');
+    document.getElementById('footer-root').innerHTML = renderFooter();
+    initToasts();
+
+    // State
+    let filters = {
+      q: '',
+      category: '',
+      condition: '',
+      maxPrice: 10000, 
+      sort: 'newest',
+      lat: null,
+      lng: null,
+      radius: 25
+    };
+
+    let map = null;
+    let heatLayer = null;
+    let markers = [];
+
+    async function loadResults() {
+      const grid = document.getElementById('results-grid');
+      grid.innerHTML = Array(6).fill('').map(() => renderSkeletonCard()).join('');
+      
+      try {
+        const tools = await fetchTools(filters);
+        const countEl = document.getElementById('results-count');
+        countEl.innerHTML = `<strong>${tools.length}</strong> TOOLS FOUND <span>IN YOUR SELECTION</span>`;
+
+        if (tools.length === 0) {
+          grid.innerHTML = `<div style="color:rgba(0,0,0,0.4); padding: 40px; text-align:center; grid-column:1/-1;">No tools match your filters. Try resetting.</div>`;
+          updateMap([]);
+          return;
+        }
+
+        grid.innerHTML = tools.map(tool => renderToolCard(tool)).join('');
+        updateMap(tools);
+      } catch (e) {
+        showToast('error', 'Failed to load tools', e.message);
+      }
+    }
+
+    function initMap() {
+        if (map) return;
+        map = L.map('map').setView([19.0760, 72.8777], 11); // Default to Mumbai
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+    }
+
+    function updateMap(tools) {
+        if (!map) return;
+        
+        // Remove old markers
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        
+        if (heatLayer) map.removeLayer(heatLayer);
+
+        const heatPoints = [];
+        const bounds = [];
+
+        tools.forEach(t => {
+            if (t.latitude && t.longitude) {
+                const marker = L.marker([t.latitude, t.longitude])
+                    .bindPopup(`<b>${t.title}</b><br>${formatCurrency(t.pricePerDay)}/day<br><a href="tool-detail.html?id=${t.id}">View Details</a>`)
+                    .addTo(map);
+                markers.push(marker);
+                heatPoints.push([t.latitude, t.longitude, 0.5]); // Intensity 0.5
+                bounds.push([t.latitude, t.longitude]);
+            }
+        });
+
+        if (heatPoints.length > 0) {
+            heatLayer = L.heatLayer(heatPoints, { radius: 25, blur: 15 }).addTo(map);
+        }
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        }
+    }
+
+    document.getElementById('toggle-map').onclick = () => {
+        const mv = document.getElementById('map-view');
+        const btn = document.getElementById('toggle-map');
+        if (mv.style.display === 'none') {
+            mv.style.display = 'block';
+            btn.textContent = '📋 Show Grid Only';
+            initMap();
+            setTimeout(() => map.invalidateSize(), 100);
+        } else {
+            mv.style.display = 'none';
+            btn.textContent = '🗺️ Show Map';
+        }
+    };
+
+    // Geolocation for Radius Filter
+    function getMyLocation() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(pos => {
+            filters.lat = pos.coords.latitude;
+            filters.lng = pos.coords.longitude;
+            loadResults();
+        }, () => {
+            showToast('info', 'Location access denied', 'Calculations will use default location.');
+            filters.lat = 19.0760; // Mumbai fallback
+            filters.lng = 72.8777;
+            loadResults();
+        });
+    }
+
+    document.getElementById('distance-range').addEventListener('change', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('distance-label').textContent = `${val} km`;
+        filters.radius = val;
+        getMyLocation(); // Triggers reload with location
+    });
+
+    // Event Listeners
+    document.getElementById('tool-search').addEventListener('input', (e) => {
+        filters.q = e.target.value;
+        loadResults();
+    });
+
+    document.querySelectorAll('[data-filter="category"]').forEach(label => {
+      label.querySelector('input').addEventListener('change', (e) => {
+        const val = label.dataset.value;
+        if (e.target.checked) filters.category = val;
+        else filters.category = '';
+        // Uncheck others (simplified for now)
+        document.querySelectorAll('[data-filter="category"] input').forEach(i => {
+           if (i !== e.target) i.checked = false;
+        });
+        loadResults();
+      });
+    });
+
+    document.querySelectorAll('[data-condition]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const val = pill.dataset.condition;
+        if (pill.classList.contains('filter-pill--active')) {
+            pill.classList.remove('filter-pill--active');
+            filters.condition = '';
+        } else {
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('filter-pill--active'));
+            pill.classList.add('filter-pill--active');
+            filters.condition = val;
+        }
+        loadResults();
+      });
+    });
+
+    document.getElementById('price-range').addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      document.getElementById('price-label').textContent = `₹${val.toLocaleString()}`;
+      filters.maxPrice = val;
+      loadResults();
+    });
+
+    document.getElementById('sort-select').addEventListener('change', (e) => {
+      filters.sort = e.target.value;
+      loadResults();
+    });
+
+    document.getElementById('filter-reset').addEventListener('click', () => {
+      filters = { q: '', category: '', condition: '', maxPrice: 1000, sort: 'newest' };
+      document.getElementById('tool-search').value = '';
+      document.querySelectorAll('[data-filter="category"] input').forEach(i => i.checked = false);
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('filter-pill--active'));
+      document.getElementById('price-range').value = 10000;
+      document.getElementById('price-label').textContent = '₹10,000';
+      loadResults();
+    });
+
+    // Initial Load
+    loadResults();
+
+  </script>
+</body>
+</html>
