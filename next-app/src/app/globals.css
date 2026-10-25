@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    --primary: 16 100% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 215 25% 20%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 15% 45%;
+
+    --accent: 16 100% 96%;
+    --accent-foreground: 16 100% 45%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 16 100% 56%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 205 25% 14%;
+    --foreground: 40 20% 94%;
+
+    --card: 205 25% 17%;
+    --card-foreground: 40 20% 94%;
+
+    --popover: 205 25% 17%;
+    --popover-foreground: 40 20% 94%;
+
+    --primary: 16 100% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 205 20% 22%;
+    --secondary-foreground: 40 20% 94%;
+
+    --muted: 205 20% 22%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 205 25% 24%;
+    --accent-foreground: 16 100% 60%;
+
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 205 20% 25%;
+    --input: 205 20% 25%;
+    --ring: 16 100% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom glassmorphism and subtle gradients */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.dark .glass-panel {
+  background: rgba(26, 36, 43, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #FF5A1F 0%, #FF8A50 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Levitating Drill Floating Animation */
+@keyframes drillFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+.animate-drill-float {
+  animation: drillFloat 3.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+

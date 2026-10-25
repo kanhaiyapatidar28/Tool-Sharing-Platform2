@@ -141,6 +141,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'api.authentication.CsrfExemptSessionAuthentication',
+        'api.authentication.EmailHeaderAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
 }

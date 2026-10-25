@@ -16,7 +16,19 @@ env/
 # Environment Variables
 .env
 
-# Node / Frontend
+# Node / Frontend / Next.js
 node_modules/
+**/node_modules/
 npm-debug.log
 .DS_Store
+.next/
+**/.next/
+out/
+**/out/
+build/
+**/build/
+.vercel
+**/.vercel/
+*.tsbuildinfo
+.env
+.env*.local

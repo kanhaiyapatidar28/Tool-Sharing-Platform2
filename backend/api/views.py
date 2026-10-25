@@ -20,6 +20,8 @@ def get_user_from_request(request):
         try:
             user = User.objects.get(email=email)
             # Log them in automatically for this session
+            if not hasattr(user, 'backend'):
+                user.backend = 'django.contrib.auth.backends.ModelBackend'
             django_login(request, user)
             return user
         except User.DoesNotExist:
@@ -63,6 +65,8 @@ def register_view(request):
         return Response({'error': 'Email already registered'}, status=status.HTTP_400_BAD_REQUEST)
         
     user = User.objects.create_user(username=name, email=email, password=password, is_owner=is_owner)
+    if not hasattr(user, 'backend'):
+        user.backend = 'django.contrib.auth.backends.ModelBackend'
     django_login(request, user)
     return Response({
         'user': UserSerializer(user).data
