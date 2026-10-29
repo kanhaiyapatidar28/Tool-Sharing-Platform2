@@ -53,14 +53,16 @@ export default function BookingsPage() {
 
   const handleReturnTool = async (id: string) => {
     try {
-      await fetch(`/api/bookings/${id}`, {
+      const res = await fetch(`/api/bookings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "COMPLETED" }),
+        body: JSON.stringify({ status: "RETURNED" }),
       });
-      setBookings((prev) =>
-        prev.map((b) => (b.id === id || b._id === id ? { ...b, status: "COMPLETED" } : b))
-      );
+      if (res.ok) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === id || b._id === id ? { ...b, status: "RETURNED" } : b))
+        );
+      }
     } catch (e) {
       console.error("Return error:", e);
     }
@@ -84,6 +86,12 @@ export default function BookingsPage() {
         return (
           <Badge variant="outline" className="text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 animate-pulse">
             ● Active Rental
+          </Badge>
+        );
+      case "RETURNED":
+        return (
+          <Badge variant="outline" className="text-amber-600 border-amber-400 bg-amber-50 dark:bg-amber-950/40">
+            ⏳ Returned • Awaiting Owner Inspection
           </Badge>
         );
       case "COMPLETED":

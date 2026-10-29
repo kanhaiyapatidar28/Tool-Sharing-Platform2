@@ -62,8 +62,25 @@ export default function ToolDetailPage() {
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(tomorrowStr);
   const [initialMsg, setInitialMsg] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+
+  const handleStartDateChange = (val: string) => {
+    setStartDate(val);
+    setBookingError("");
+    if (val >= endDate) {
+      const nextDay = new Date(new Date(val).getTime() + 86400000).toISOString().split("T")[0];
+      setEndDate(nextDay);
+    }
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setEndDate(val);
+    setBookingError("");
+  };
 
   useEffect(() => {
     if (tool && showToolQr) {
@@ -118,33 +135,40 @@ export default function ToolDetailPage() {
 
   const handleBooking = async () => {
     if (!tool) return;
+    setBookingError("");
+
+    const effectiveName = user ? user.name : guestName.trim();
+    const effectiveEmail = user ? user.email : guestEmail.trim().toLowerCase();
+
+    if (!user && (!effectiveName || !effectiveEmail || !effectiveEmail.includes("@"))) {
+      setBookingError("Please sign in or enter your name and a valid email address to complete booking.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const idempotencyKey = `idem-${tool.id || tool._id}-${startDate}-${endDate}-${Date.now()}`;
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toolId: tool.id || tool._id,
-          toolTitle: tool.title,
-          toolPhoto: tool.images?.[0] || "/assets/drill machine.png",
-          renterName: user ? user.name : "Bob Borrower",
-          renterEmail: user ? user.email : "bob_borrower@example.com",
-          ownerName: tool.ownerName,
           startDate,
           endDate,
-          totalDays,
-          ratePerDay: dailyRate,
-          deposit,
-          totalPrice: grandTotal,
-          initialMsg: initialMsg || "Requesting rental for DIY weekend project.",
+          renterName: effectiveName,
+          renterEmail: effectiveEmail,
+          initialMsg: initialMsg || "Requesting rental for DIY home project.",
+          idempotencyKey,
         }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setBookingSuccess(true);
+      } else {
+        setBookingError(data.error || "Could not complete booking. Please check dates.");
       }
-    } catch (e) {
-      console.error("Booking error:", e);
+    } catch (e: any) {
+      setBookingError(e.message || "Network error. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -369,7 +393,7 @@ export default function ToolDetailPage() {
                     type="date"
                     min={todayStr}
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
                     className="w-full bg-transparent text-xs font-bold text-foreground focus:outline-none mt-1"
                   />
                 </div>
@@ -382,12 +406,40 @@ export default function ToolDetailPage() {
                     type="date"
                     min={startDate}
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
                     className="w-full bg-transparent text-xs font-bold text-foreground focus:outline-none mt-1"
                   />
                 </div>
               </div>
             </div>
+
+            {/* Guest Borrower Inputs if not logged in */}
+            {!user && (
+              <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-border/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+                    Borrower Details
+                  </span>
+                  <Link href="/login" className="text-[11px] text-brand hover:underline font-semibold">
+                    Sign in instead
+                  </Link>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Your Full Name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-brand"
+                />
+                <input
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-brand"
+                />
+              </div>
+            )}
 
             {/* Note to Owner */}
             <div className="space-y-2">
@@ -414,14 +466,14 @@ export default function ToolDetailPage() {
 
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  Community Escrow & Protection (5%) <Info className="w-3 h-3 text-muted-foreground" />
+                  Marketplace Service Fee (5%) <Info className="w-3 h-3 text-muted-foreground" />
                 </span>
                 <span className="font-bold text-foreground">{formatCurrency(platformFee)}</span>
               </div>
 
               {deposit > 0 && (
                 <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                  <span>Refundable Security Deposit (held in escrow)</span>
+                  <span>Refundable Security Deposit (held safely during rental)</span>
                   <span className="font-bold">{formatCurrency(deposit)}</span>
                 </div>
               )}
@@ -433,6 +485,13 @@ export default function ToolDetailPage() {
                 </span>
               </div>
             </div>
+
+            {/* Booking Error Banner */}
+            {bookingError && (
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 text-xs leading-relaxed font-medium">
+                ⚠️ {bookingError}
+              </div>
+            )}
 
             {/* Booking Action / Modal State */}
             {bookingSuccess ? (

@@ -1,12 +1,15 @@
 import connectToDatabase from "./mongodb";
-import type { IUser } from "@/models/User";
-import type { ITool } from "@/models/Tool";
-import type { IBooking } from "@/models/Booking";
-
 export * from "./constants";
 import { ToolItem, BookingItem, INITIAL_TOOLS, INITIAL_USERS, INITIAL_BOOKINGS } from "./constants";
 
-// Lazy-load models to eliminate 4.4s cold-require delay when DB is offline or on initial hit
+/**
+ * Escapes regex special characters to prevent ReDoS / Regex Injection
+ */
+export function escapeRegex(text: string): string {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+}
+
+// Lazy-load models to eliminate cold-start delay
 let modelsPromise: Promise<{
   User: typeof import("@/models/User").default;
   Tool: typeof import("@/models/Tool").default;
@@ -36,12 +39,13 @@ class MemoryStore {
   wishlists: Record<string, string[]> = {
     "bob_borrower@example.com": ["tool-1", "tool-2"],
   };
+  idempotencyKeys: Set<string> = new Set();
 }
 
 const memoryStore = new MemoryStore();
 let isMongoSeeded = false;
 
-// Auto-seed MongoDB on initial connection
+// Auto-seed MongoDB with initial tools, users, and ownerEmails on initial connect
 async function seedMongoIfEmpty() {
   if (isMongoSeeded) return;
   try {
@@ -65,6 +69,7 @@ async function seedMongoIfEmpty() {
           address: t.address,
           specs: t.specs,
           ownerName: t.ownerName,
+          ownerEmail: t.ownerEmail || (t.ownerName.toLowerCase().includes("alice") ? "alice_owner@example.com" : "john_owner@example.com"),
           isAvailable: t.isAvailable,
           rating: t.rating,
           reviewsCount: t.reviewsCount,
@@ -73,7 +78,10 @@ async function seedMongoIfEmpty() {
         });
       }
       for (const b of INITIAL_BOOKINGS) {
-        await Booking.create(b);
+        await Booking.create({
+          ...b,
+          ownerEmail: b.ownerName.toLowerCase().includes("alice") ? "alice_owner@example.com" : "john_owner@example.com",
+        });
       }
       console.log("MongoDB seeded successfully!");
     }
@@ -101,10 +109,11 @@ export async function getTools(filters?: {
       if (filters?.category && filters.category !== "ALL") {
         query.category = filters.category;
       }
-      if (filters?.search) {
+      if (filters?.search && filters.search.trim()) {
+        const sanitized = escapeRegex(filters.search.trim());
         query.$or = [
-          { title: { $regex: filters.search, $options: "i" } },
-          { description: { $regex: filters.search, $options: "i" } },
+          { title: { $regex: sanitized, $options: "i" } },
+          { description: { $regex: sanitized, $options: "i" } },
         ];
       }
       if (filters?.city && filters.city !== "ALL") {
@@ -129,6 +138,7 @@ export async function getTools(filters?: {
         address: d.address,
         specs: d.specs instanceof Map ? Object.fromEntries(d.specs) : (d.specs || {}),
         ownerName: d.ownerName,
+        ownerEmail: d.ownerEmail,
         isAvailable: d.isAvailable,
         rating: d.rating,
         reviewsCount: d.reviewsCount,
@@ -146,8 +156,8 @@ export async function getTools(filters?: {
   if (filters?.category && filters.category !== "ALL") {
     list = list.filter((t) => t.category === filters.category);
   }
-  if (filters?.search) {
-    const s = filters.search.toLowerCase();
+  if (filters?.search && filters.search.trim()) {
+    const s = filters.search.toLowerCase().trim();
     list = list.filter((t) => t.title.toLowerCase().includes(s) || t.description.toLowerCase().includes(s));
   }
   if (filters?.city && filters.city !== "ALL") {
@@ -171,7 +181,8 @@ export async function getToolById(id: string): Promise<ToolItem | null> {
         doc = await Tool.findById(id);
       }
       if (!doc) {
-        doc = await Tool.findOne({ title: { $regex: id.replace(/-/g, " "), $options: "i" } });
+        const cleanSlug = escapeRegex(id.replace(/-/g, " "));
+        doc = await Tool.findOne({ title: { $regex: cleanSlug, $options: "i" } });
       }
       if (doc) {
         return {
@@ -188,6 +199,7 @@ export async function getToolById(id: string): Promise<ToolItem | null> {
           address: doc.address,
           specs: doc.specs instanceof Map ? Object.fromEntries(doc.specs) : (doc.specs || {}),
           ownerName: doc.ownerName,
+          ownerEmail: doc.ownerEmail,
           isAvailable: doc.isAvailable,
           rating: doc.rating,
           reviewsCount: doc.reviewsCount,
@@ -223,6 +235,7 @@ export async function createTool(data: Partial<ToolItem>): Promise<ToolItem> {
         address: data.address || "Andheri, Mumbai",
         specs: data.specs || {},
         ownerName: data.ownerName || "Tool Owner",
+        ownerEmail: data.ownerEmail || "owner@toolshare.in",
         isAvailable: true,
         rating: 5.0,
         reviewsCount: 1,
@@ -244,6 +257,7 @@ export async function createTool(data: Partial<ToolItem>): Promise<ToolItem> {
         address: doc.address,
         specs: doc.specs instanceof Map ? Object.fromEntries(doc.specs) : (doc.specs || {}),
         ownerName: doc.ownerName,
+        ownerEmail: doc.ownerEmail,
         isAvailable: doc.isAvailable,
         rating: doc.rating,
         reviewsCount: doc.reviewsCount,
@@ -269,6 +283,7 @@ export async function createTool(data: Partial<ToolItem>): Promise<ToolItem> {
     address: data.address || "Mumbai Central",
     specs: data.specs || {},
     ownerName: data.ownerName || "Current User",
+    ownerEmail: data.ownerEmail || "owner@toolshare.in",
     isAvailable: true,
     rating: 5.0,
     reviewsCount: 1,
@@ -280,21 +295,112 @@ export async function createTool(data: Partial<ToolItem>): Promise<ToolItem> {
   return newItem;
 }
 
-export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
+function formatMessages(messages: any[]): Array<{ senderName: string; senderEmail: string; text: string; timestamp: string }> {
+  if (!Array.isArray(messages)) return [];
+  return messages.map((m) => ({
+    senderName: String(m.senderName || ""),
+    senderEmail: String(m.senderEmail || ""),
+    text: String(m.text || ""),
+    timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : String(m.timestamp || new Date().toISOString()),
+  }));
+}
+
+// ------------------- Overlap & Concurrency Engine -------------------
+
+/**
+ * Validates whether the tool is already reserved for the requested dates
+ */
+export async function checkBookingOverlap(
+  toolId: string,
+  toolTitle: string,
+  startDate: string,
+  endDate: string,
+  excludeBookingId?: string
+): Promise<{ hasOverlap: boolean; conflictingBooking?: BookingItem }> {
   const { isConnected } = await connectToDatabase();
 
-  const isBorrowerMatch = userEmail ? (userEmail.toLowerCase().includes("borrower") || userEmail === "bob_borrower@example.com") : false;
-  const isOwnerMatch = userEmail ? (userEmail.toLowerCase().includes("owner") || userEmail === "john_owner@example.com" || userEmail === "alice_owner@example.com") : false;
+  if (isConnected) {
+    try {
+      const { Booking } = await getModels();
+      const orConditions: any[] = [];
+      if (toolId && toolId.match(/^[0-9a-fA-F]{24}$/)) {
+        orConditions.push({ tool: toolId });
+      }
+      if (toolTitle) {
+        orConditions.push({ toolTitle });
+      }
+
+      const query: any = {
+        $or: orConditions.length > 0 ? orConditions : [{ toolTitle }],
+        status: { $in: ["CONFIRMED", "RENTED"] },
+        startDate: { $lte: endDate },
+        endDate: { $gte: startDate },
+      };
+
+      if (excludeBookingId && excludeBookingId.match(/^[0-9a-fA-F]{24}$/)) {
+        query._id = { $ne: excludeBookingId };
+      }
+
+      const conflict = await Booking.findOne(query);
+      if (conflict) {
+        return {
+          hasOverlap: true,
+          conflictingBooking: {
+            id: conflict._id.toString(),
+            toolId: conflict.tool?.toString() || conflict.toolTitle,
+            toolTitle: conflict.toolTitle,
+            toolPhoto: conflict.toolPhoto,
+            renterName: conflict.renterName,
+            renterEmail: conflict.renterEmail,
+            ownerName: conflict.ownerName,
+            ownerEmail: conflict.ownerEmail,
+            startDate: conflict.startDate,
+            endDate: conflict.endDate,
+            totalDays: conflict.totalDays,
+            ratePerDay: conflict.ratePerDay,
+            deposit: conflict.deposit,
+            totalPrice: conflict.totalPrice,
+            status: conflict.status,
+            isSigned: conflict.isSigned,
+            messages: formatMessages(conflict.messages),
+            createdAt: conflict.createdAt?.toISOString(),
+          },
+        };
+      }
+      return { hasOverlap: false };
+    } catch (e) {
+      console.warn("MongoDB checkBookingOverlap failed, checking memory:", e);
+    }
+  }
+
+  // Memory fallback check
+  const conflict = memoryStore.bookings.find((b) => {
+    if (excludeBookingId && (b.id === excludeBookingId || b._id === excludeBookingId)) return false;
+    const sameTool = b.toolId === toolId || b.toolTitle === toolTitle;
+    const isActive = b.status === "CONFIRMED" || b.status === "RENTED";
+    const overlaps = b.startDate <= endDate && b.endDate >= startDate;
+    return sameTool && isActive && overlaps;
+  });
+
+  return { hasOverlap: Boolean(conflict), conflictingBooking: conflict };
+}
+
+// ------------------- Bookings Data Access -------------------
+
+/**
+ * Securely fetch bookings.
+ * If userEmail is provided, strictly limits results to bookings belonging to that user.
+ */
+export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
+  const { isConnected } = await connectToDatabase();
 
   if (isConnected) {
     try {
       const { Booking } = await getModels();
       const query: any = {};
       if (userEmail) {
-        const emails = [userEmail];
-        if (isBorrowerMatch) emails.push("bob_borrower@example.com", "borrower@toolshare.in");
-        if (isOwnerMatch) emails.push("john_owner@example.com", "alice_owner@example.com", "owner@toolshare.in");
-        query.$or = [{ renterEmail: { $in: emails } }, { ownerEmail: { $in: emails } }];
+        const normalized = userEmail.toLowerCase().trim();
+        query.$or = [{ renterEmail: normalized }, { ownerEmail: normalized }];
       }
       const docs = await Booking.find(query).sort({ createdAt: -1 });
       return docs.map((d: any) => ({
@@ -306,6 +412,7 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
         renterName: d.renterName,
         renterEmail: d.renterEmail,
         ownerName: d.ownerName,
+        ownerEmail: d.ownerEmail,
         startDate: d.startDate,
         endDate: d.endDate,
         totalDays: d.totalDays,
@@ -316,7 +423,7 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
         initialMsg: d.initialMsg,
         isSigned: d.isSigned,
         actualStartTime: d.actualStartTime?.toISOString(),
-        messages: d.messages || [],
+        messages: formatMessages(d.messages),
         createdAt: d.createdAt?.toISOString(),
       }));
     } catch (e) {
@@ -324,51 +431,139 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
     }
   }
 
+  // Memory fallback without leaky string matchers
   if (userEmail) {
-    return memoryStore.bookings.filter((b) => {
-      if (b.renterEmail === userEmail) return true;
-      if (isBorrowerMatch && (b.renterEmail === "bob_borrower@example.com" || b.renterEmail === "borrower@toolshare.in")) return true;
-      if (isOwnerMatch) return true;
-      return false;
-    });
+    const normalized = userEmail.toLowerCase().trim();
+    return memoryStore.bookings.filter(
+      (b) => b.renterEmail.toLowerCase() === normalized || (b as any).ownerEmail?.toLowerCase() === normalized
+    );
   }
   return memoryStore.bookings;
 }
 
-export async function createBooking(data: Partial<BookingItem>): Promise<BookingItem> {
+/**
+ * Server-authoritative booking creation.
+ * Re-validates prices, dates, overlaps, and enforces idempotency.
+ */
+export async function createBooking(data: {
+  toolId: string;
+  startDate: string;
+  endDate: string;
+  renterName: string;
+  renterEmail: string;
+  initialMsg?: string;
+  idempotencyKey?: string;
+}): Promise<BookingItem> {
+  // 1. Fetch authoritative tool details
+  const tool = await getToolById(data.toolId);
+  if (!tool) {
+    throw new Error("TOOL_NOT_FOUND");
+  }
+
+  // 2. Validate dates
+  const todayStr = new Date().toISOString().split("T")[0];
+  if (data.startDate < todayStr) {
+    throw new Error("START_DATE_IN_PAST");
+  }
+  if (data.endDate < data.startDate) {
+    throw new Error("INVALID_DATE_RANGE");
+  }
+
+  const s = new Date(data.startDate);
+  const e = new Date(data.endDate);
+  const diffTime = e.getTime() - s.getTime();
+  const calculatedDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  if (calculatedDays > 60) {
+    throw new Error("EXCEEDS_MAXIMUM_RENTAL_DURATION");
+  }
+
+  // 3. Concurrency check for overlapping confirmed/rented dates
+  const { hasOverlap } = await checkBookingOverlap(
+    tool.id || tool._id || data.toolId,
+    tool.title,
+    data.startDate,
+    data.endDate
+  );
+
+  if (hasOverlap) {
+    throw new Error("TOOL_ALREADY_RESERVED_FOR_DATES");
+  }
+
+  // 4. Server authoritative financial calculation
+  const ratePerDay = tool.ratePerDay;
+  const deposit = tool.deposit || 0;
+  const rentalFee = calculatedDays * ratePerDay;
+  const platformFee = Math.round(rentalFee * 0.05); // 5% marketplace service fee
+  const totalPrice = rentalFee + platformFee;
+
+  const ownerEmail = tool.ownerEmail || (tool.ownerName.toLowerCase().includes("alice") ? "alice_owner@example.com" : "john_owner@example.com");
+
   const { isConnected } = await connectToDatabase();
 
   if (isConnected) {
     try {
       const { Booking } = await getModels();
+
+      // Check idempotency if key provided
+      if (data.idempotencyKey) {
+        const existing = await Booking.findOne({ idempotencyKey: data.idempotencyKey });
+        if (existing) {
+          return {
+            id: existing._id.toString(),
+            _id: existing._id.toString(),
+            toolId: existing.tool?.toString() || existing.toolTitle,
+            toolTitle: existing.toolTitle,
+            toolPhoto: existing.toolPhoto,
+            renterName: existing.renterName,
+            renterEmail: existing.renterEmail,
+            ownerName: existing.ownerName,
+            ownerEmail: existing.ownerEmail,
+            startDate: existing.startDate,
+            endDate: existing.endDate,
+            totalDays: existing.totalDays,
+            ratePerDay: existing.ratePerDay,
+            deposit: existing.deposit,
+            totalPrice: existing.totalPrice,
+            status: existing.status,
+            initialMsg: existing.initialMsg,
+            isSigned: existing.isSigned,
+            messages: formatMessages(existing.messages),
+            createdAt: existing.createdAt?.toISOString(),
+          };
+        }
+      }
+
       const doc = await Booking.create({
-        tool: data.toolId && data.toolId.match(/^[0-9a-fA-F]{24}$/) ? data.toolId : undefined,
-        toolTitle: data.toolTitle,
-        toolPhoto: data.toolPhoto || "/assets/drill machine.png",
-        renterName: data.renterName || "Borrower",
-        renterEmail: data.renterEmail || "user@example.com",
-        ownerName: data.ownerName || "Owner",
+        tool: tool.id && tool.id.match(/^[0-9a-fA-F]{24}$/) ? tool.id : undefined,
+        toolTitle: tool.title,
+        toolPhoto: tool.images?.[0] || "/assets/drill machine.png",
+        renterName: data.renterName,
+        renterEmail: data.renterEmail.toLowerCase().trim(),
+        ownerName: tool.ownerName,
+        ownerEmail,
         startDate: data.startDate,
         endDate: data.endDate,
-        totalDays: data.totalDays || 1,
-        ratePerDay: data.ratePerDay || 0,
-        deposit: data.deposit || 0,
-        totalPrice: data.totalPrice || 0,
+        totalDays: calculatedDays,
+        ratePerDay,
+        deposit,
+        totalPrice,
         status: "CONFIRMED",
-        initialMsg: data.initialMsg || "",
+        initialMsg: data.initialMsg || "Requesting tool rental for DIY project.",
         isSigned: true,
+        idempotencyKey: data.idempotencyKey,
         messages: [],
       });
 
       return {
         id: doc._id.toString(),
         _id: doc._id.toString(),
-        toolId: data.toolId || doc._id.toString(),
+        toolId: tool.id || doc._id.toString(),
         toolTitle: doc.toolTitle,
         toolPhoto: doc.toolPhoto,
         renterName: doc.renterName,
         renterEmail: doc.renterEmail,
         ownerName: doc.ownerName,
+        ownerEmail: doc.ownerEmail,
         startDate: doc.startDate,
         endDate: doc.endDate,
         totalDays: doc.totalDays,
@@ -381,25 +576,26 @@ export async function createBooking(data: Partial<BookingItem>): Promise<Booking
         messages: [],
         createdAt: doc.createdAt?.toISOString(),
       };
-    } catch (e) {
-      console.warn("MongoDB createBooking failed:", e);
+    } catch (e: any) {
+      console.warn("MongoDB createBooking failed:", e.message);
     }
   }
 
+  // Memory fallback with server calculated values
   const newBooking: BookingItem = {
     id: `b-${Date.now()}`,
-    toolId: data.toolId || "tool-1",
-    toolTitle: data.toolTitle || "Tool Rental",
-    toolPhoto: data.toolPhoto || "/assets/drill machine.png",
-    renterName: data.renterName || "Borrower",
-    renterEmail: data.renterEmail || "bob_borrower@example.com",
-    ownerName: data.ownerName || "John Owner",
-    startDate: data.startDate || new Date().toISOString().split("T")[0],
-    endDate: data.endDate || new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
-    totalDays: data.totalDays || 2,
-    ratePerDay: data.ratePerDay || 450,
-    deposit: data.deposit || 1500,
-    totalPrice: data.totalPrice || 900,
+    toolId: tool.id || data.toolId,
+    toolTitle: tool.title,
+    toolPhoto: tool.images?.[0] || "/assets/drill machine.png",
+    renterName: data.renterName,
+    renterEmail: data.renterEmail.toLowerCase().trim(),
+    ownerName: tool.ownerName,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    totalDays: calculatedDays,
+    ratePerDay,
+    deposit,
+    totalPrice,
     status: "CONFIRMED",
     initialMsg: data.initialMsg || "",
     isSigned: true,
@@ -411,34 +607,64 @@ export async function createBooking(data: Partial<BookingItem>): Promise<Booking
   return newBooking;
 }
 
-export async function updateBookingStatus(id: string, status: BookingItem["status"]): Promise<boolean> {
+/**
+ * Validated status transitions with ownership verification
+ */
+export async function updateBookingStatus(
+  id: string,
+  newStatus: BookingItem["status"],
+  callerEmail?: string,
+  callerRole?: string
+): Promise<{ success: boolean; error?: string }> {
   const { isConnected } = await connectToDatabase();
+
+  const VALID_STATUSES = ["PENDING", "APPROVED", "CONFIRMED", "RENTED", "RETURNED", "COMPLETED", "CANCELLED"];
+  if (!VALID_STATUSES.includes(newStatus)) {
+    return { success: false, error: "Invalid status transition" };
+  }
 
   if (isConnected) {
     try {
       if (id.match(/^[0-9a-fA-F]{24}$/)) {
         const { Booking } = await getModels();
-        await Booking.findByIdAndUpdate(id, { status });
-        return true;
+        const booking = await Booking.findById(id);
+        if (!booking) return { success: false, error: "Booking not found" };
+
+        // Verify authorization if caller details passed
+        if (callerEmail && callerRole !== "admin") {
+          const isRenter = booking.renterEmail.toLowerCase() === callerEmail.toLowerCase();
+          const isOwner = (booking.ownerEmail || "").toLowerCase() === callerEmail.toLowerCase();
+          if (!isRenter && !isOwner) {
+            return { success: false, error: "Unauthorized to update this booking" };
+          }
+        }
+
+        booking.status = newStatus;
+        if (newStatus === "RENTED" && !booking.actualStartTime) {
+          booking.actualStartTime = new Date();
+        }
+        await booking.save();
+        return { success: true };
       }
-    } catch (e) {
-      console.warn("MongoDB updateBookingStatus failed:", e);
+    } catch (e: any) {
+      console.warn("MongoDB updateBookingStatus failed:", e.message);
     }
   }
 
   const b = memoryStore.bookings.find((item) => item.id === id || item._id === id);
   if (b) {
-    b.status = status;
-    return true;
+    b.status = newStatus;
+    return { success: true };
   }
-  return false;
+  return { success: false, error: "Booking not found" };
 }
 
 export async function toggleWishlist(userEmail: string, toolId: string): Promise<boolean> {
-  if (!memoryStore.wishlists[userEmail]) {
-    memoryStore.wishlists[userEmail] = [];
+  const email = userEmail.toLowerCase().trim();
+  if (!memoryStore.wishlists[email]) {
+    memoryStore.wishlists[email] = [];
   }
-  const arr = memoryStore.wishlists[userEmail];
+  const arr = memoryStore.wishlists[email];
   const idx = arr.indexOf(toolId);
   if (idx > -1) {
     arr.splice(idx, 1);
@@ -450,7 +676,7 @@ export async function toggleWishlist(userEmail: string, toolId: string): Promise
 }
 
 export async function getWishlist(userEmail: string): Promise<ToolItem[]> {
-  const ids = memoryStore.wishlists[userEmail] || [];
+  const ids = memoryStore.wishlists[userEmail.toLowerCase().trim()] || [];
   const tools = await getTools();
   return tools.filter((t) => ids.includes(t.id) || (t._id && ids.includes(t._id)));
 }
@@ -461,7 +687,7 @@ export async function addBookingMessage(
 ): Promise<{ success: boolean; message?: any; messages?: any[] }> {
   const newMsg = {
     senderName: msg.senderName,
-    senderEmail: msg.senderEmail,
+    senderEmail: msg.senderEmail.toLowerCase().trim(),
     text: msg.text,
     timestamp: new Date().toISOString(),
   };
@@ -490,10 +716,9 @@ export async function addBookingMessage(
   );
   if (booking) {
     if (!booking.messages) booking.messages = [];
-    booking.messages.push(newMsg);
+    booking.messages.push(newMsg as any);
     return { success: true, message: newMsg, messages: booking.messages };
   }
 
   return { success: false };
 }
-

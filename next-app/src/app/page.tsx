@@ -18,12 +18,12 @@ import {
 } from "lucide-react";
 
 const CATEGORIES = [
-  { id: "POWER_TOOLS", label: "Power Tools", icon: "⚡", count: "2,840+ Tools" },
-  { id: "HAND_TOOLS", label: "Hand Tools", icon: "🔨", count: "1,920+ Tools" },
-  { id: "WOODWORKING", label: "Woodworking", icon: "🪵", count: "650+ Tools" },
-  { id: "GARDEN", label: "Garden & Lawn", icon: "🌿", count: "1,450+ Tools" },
-  { id: "CLEANING", label: "Pressure Washers", icon: "🧹", count: "430+ Tools" },
-  { id: "HEAVY_EQUIPMENT", label: "Heavy Equipment", icon: "🏗️", count: "890+ Tools" },
+  { id: "POWER_TOOLS", label: "Power Tools", icon: "⚡", count: "Drills, Drivers & Saws" },
+  { id: "HAND_TOOLS", label: "Hand Tools", icon: "🔨", count: "Wrenches & Sets" },
+  { id: "WOODWORKING", label: "Woodworking", icon: "🪵", count: "Sanders & Planers" },
+  { id: "GARDEN", label: "Garden & Lawn", icon: "🌿", count: "Chainsaws & Cutters" },
+  { id: "CLEANING", label: "Pressure Washers", icon: "🧹", count: "145 Bar Dirt Blasters" },
+  { id: "HEAVY_EQUIPMENT", label: "Heavy Equipment", icon: "🏗️", count: "Telescopic Ladders" },
 ];
 
 export default async function HomePage() {
@@ -216,7 +216,7 @@ export default async function HomePage() {
                 href="/tools/tool-1"
                 className="absolute bottom-4 sm:bottom-6 left-[42%] sm:left-[44%] -translate-x-1/2 z-30 inline-flex items-center gap-2 bg-neutral-900 hover:bg-brand text-white px-5 py-2.5 rounded-full text-xs font-oswald uppercase tracking-wider font-bold shadow-xl shadow-black/10 transition-all duration-300 hover:scale-105 active:scale-95 group"
               >
-                <span>Rent Bosch 18V Drill • ₹350/day</span>
+                <span>Rent Bosch 18V Drill • ₹450/day</span>
                 <ArrowRight className="w-3.5 h-3.5 text-brand group-hover:text-white transition-colors" />
               </Link>
             </div>
@@ -403,8 +403,81 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ==================== ABOUT US SECTION ==================== */}
+      <section id="about" className="px-4 sm:px-8 max-w-7xl mx-auto scroll-mt-24">
+        <div className="rounded-[2.5rem] bg-card text-foreground p-8 sm:p-12 border border-border/80 shadow-md">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-5 space-y-4">
+              <span className="text-xs font-bold text-brand uppercase tracking-wider">
+                About Our Community
+              </span>
+              <h2 className="font-oswald text-3xl sm:text-4xl font-black uppercase tracking-tight text-foreground leading-tight">
+                India&apos;s Neighborhood Equipment Movement
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                Most heavy power tools and specialized equipment are used for less than 30 minutes in their entire lifetime before sitting in a dark cupboard. ToolShare empowers Indian apartment communities, DIYers, and hobbyists to share high-performance gear safely and affordably.
+              </p>
+              <div className="pt-2 flex items-center gap-6">
+                <div>
+                  <div className="font-oswald text-2xl sm:text-3xl font-black text-brand">70%</div>
+                  <div className="text-[11px] text-muted-foreground uppercase font-bold">Average Savings</div>
+                </div>
+                <div className="w-[1px] h-10 bg-border" />
+                <div>
+                  <div className="font-oswald text-2xl sm:text-3xl font-black text-emerald-600">100%</div>
+                  <div className="text-[11px] text-muted-foreground uppercase font-bold">Tested Handover</div>
+                </div>
+                <div className="w-[1px] h-10 bg-border" />
+                <div>
+                  <div className="font-oswald text-2xl sm:text-3xl font-black text-foreground">₹0</div>
+                  <div className="text-[11px] text-muted-foreground uppercase font-bold">Storage Clutter</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/50 border border-border/60 space-y-2">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-lg">
+                  🤝
+                </div>
+                <h3 className="font-oswald text-base font-bold uppercase text-foreground">
+                  Verified Local Owners
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Connect with actual neighbors in your locality. Inspect tools directly and receive practical usage tips on the spot.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/50 border border-border/60 space-y-2">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-lg">
+                  🛡️
+                </div>
+                <h3 className="font-oswald text-base font-bold uppercase text-foreground">
+                  Deposit Protection
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Transparent security deposits held safely during rental and released immediately upon verified undamaged return.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/50 border border-border/60 space-y-2">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-lg">
+                  📱
+                </div>
+                <h3 className="font-oswald text-base font-bold uppercase text-foreground">
+                  QR Handover Pass
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Dynamic ISO-18004 tokens confirm custody transfer between parties without paperwork or disputes.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ==================== HOW IT WORKS ==================== */}
-      <section id="how-it-works" className="px-4 sm:px-8 max-w-7xl mx-auto">
+      <section id="how-it-works" className="px-4 sm:px-8 max-w-7xl mx-auto scroll-mt-24">
         <div className="rounded-[2.5rem] bg-white text-neutral-900 p-8 sm:p-14 border border-neutral-200/90 shadow-xl">
           <div className="text-center max-w-xl mx-auto mb-12">
             <span className="text-xs font-bold text-brand uppercase tracking-wider">

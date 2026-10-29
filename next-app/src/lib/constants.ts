@@ -30,6 +30,7 @@ export interface BookingItem {
   renterName: string;
   renterEmail: string;
   ownerName: string;
+  ownerEmail?: string;
   startDate: string;
   endDate: string;
   totalDays: number;

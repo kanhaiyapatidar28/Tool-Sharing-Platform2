@@ -4,11 +4,12 @@ export interface IBooking extends Document {
   tool: mongoose.Types.ObjectId;
   toolTitle: string;
   toolPhoto: string;
-  renter: mongoose.Types.ObjectId;
+  renter?: mongoose.Types.ObjectId;
   renterName: string;
   renterEmail: string;
   ownerId?: mongoose.Types.ObjectId;
   ownerName: string;
+  ownerEmail?: string;
   startDate: string;
   endDate: string;
   totalDays: number;
@@ -18,6 +19,7 @@ export interface IBooking extends Document {
   status: "PENDING" | "APPROVED" | "CONFIRMED" | "RENTED" | "RETURNED" | "COMPLETED" | "CANCELLED";
   initialMsg?: string;
   isSigned: boolean;
+  idempotencyKey?: string;
   actualStartTime?: Date;
   messages: Array<{
     senderName: string;
@@ -30,14 +32,15 @@ export interface IBooking extends Document {
 
 const BookingSchema: Schema = new Schema(
   {
-    tool: { type: Schema.Types.ObjectId, ref: "Tool", required: true },
+    tool: { type: Schema.Types.ObjectId, ref: "Tool", required: true, index: true },
     toolTitle: { type: String, required: true },
     toolPhoto: { type: String, default: "" },
     renter: { type: Schema.Types.ObjectId, ref: "User" },
     renterName: { type: String, default: "Borrower" },
-    renterEmail: { type: String, default: "" },
+    renterEmail: { type: String, default: "", index: true },
     ownerId: { type: Schema.Types.ObjectId, ref: "User" },
     ownerName: { type: String, default: "Owner" },
+    ownerEmail: { type: String, default: "", index: true },
     startDate: { type: String, required: true },
     endDate: { type: String, required: true },
     totalDays: { type: Number, default: 1 },
@@ -48,9 +51,11 @@ const BookingSchema: Schema = new Schema(
       type: String,
       enum: ["PENDING", "APPROVED", "CONFIRMED", "RENTED", "RETURNED", "COMPLETED", "CANCELLED"],
       default: "CONFIRMED",
+      index: true,
     },
     initialMsg: { type: String, default: "" },
     isSigned: { type: Boolean, default: true },
+    idempotencyKey: { type: String, sparse: true, index: true },
     actualStartTime: { type: Date },
     messages: [
       {
@@ -63,6 +68,9 @@ const BookingSchema: Schema = new Schema(
   },
   { timestamps: true }
 );
+
+// Compound index for fast overlapping availability scans
+BookingSchema.index({ tool: 1, status: 1, startDate: 1, endDate: 1 });
 
 export const Booking: Model<IBooking> =
   mongoose.models.Booking || mongoose.model<IBooking>("Booking", BookingSchema);

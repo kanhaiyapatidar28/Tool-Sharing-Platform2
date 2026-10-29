@@ -17,6 +17,8 @@ import {
   ChevronDown,
   Sparkles,
   ShoppingBag,
+  Bell,
+  HelpCircle,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -34,6 +36,7 @@ export default function Navbar() {
         role: "owner",
         isOwner: true,
         avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80",
+        city: "Mumbai",
       });
     } else {
       login({
@@ -43,6 +46,7 @@ export default function Navbar() {
         role: "borrower",
         isOwner: false,
         avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80",
+        city: "Mumbai",
       });
     }
     setUserDropdownOpen(false);
@@ -50,15 +54,20 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-4 z-50 w-full px-4 sm:px-8 max-w-7xl mx-auto">
-      <div className="bg-white/95 backdrop-blur-xl border border-neutral-200/90 rounded-full px-6 py-3 shadow-xl flex items-center justify-between transition-all">
+      <div className="bg-white/95 backdrop-blur-xl border border-neutral-200/90 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 shadow-xl flex items-center justify-between transition-all">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="w-9 h-9 rounded-full bg-brand flex items-center justify-center text-white shadow-md shadow-brand/40 group-hover:scale-105 transition-transform">
             <Wrench className="w-5 h-5" />
           </div>
-          <span className="font-oswald text-xl uppercase tracking-wider text-neutral-900 font-bold">
-            Household Tools
-          </span>
+          <div className="flex flex-col">
+            <span className="font-oswald text-xl uppercase tracking-wider text-neutral-900 font-bold leading-none">
+              ToolShare
+            </span>
+            <span className="text-[9px] uppercase font-bold tracking-widest text-brand leading-tight">
+              India
+            </span>
+          </div>
         </Link>
 
         {/* Desktop Navigation Links */}
@@ -80,7 +89,7 @@ export default function Navbar() {
             href="/browse"
             className={`px-3 py-1 rounded-full transition-colors ${
               pathname === "/browse"
-                ? "bg-brand text-white font-semibold"
+                ? "bg-brand text-white font-semibold shadow-xs"
                 : "hover:text-neutral-900 hover:bg-white"
             }`}
           >
@@ -98,16 +107,22 @@ export default function Navbar() {
               {user.isOwner ? "Owner Dashboard" : "My Rentals"}
             </Link>
           )}
+          <Link
+            href="/help"
+            className="px-3 py-1 rounded-full hover:text-neutral-900 hover:bg-white transition-colors text-xs font-semibold"
+          >
+            Help
+          </Link>
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/list-tool" className="hidden sm:inline-block">
             <Button
               variant="pill"
-              className="h-11 px-5 sm:px-6 bg-brand hover:bg-brand-hover text-white font-oswald uppercase tracking-wider text-sm font-bold shadow-lg shadow-brand/30 hover:shadow-brand/50 hover:scale-[1.03] active:scale-[0.98] transition-all rounded-full"
+              className="h-10 sm:h-11 px-4 sm:px-6 bg-brand hover:bg-brand-hover text-white font-oswald uppercase tracking-wider text-xs sm:text-sm font-bold shadow-lg shadow-brand/30 hover:shadow-brand/50 hover:scale-[1.03] active:scale-[0.98] transition-all rounded-full"
             >
-              <PlusCircle className="w-4 h-4 mr-2" /> List a Tool
+              <PlusCircle className="w-4 h-4 mr-1.5 sm:mr-2" /> List a Tool
             </Button>
           </Link>
 
@@ -116,9 +131,10 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="h-11 flex items-center gap-2.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-3.5 rounded-full text-neutral-900 text-xs font-semibold transition-all"
+                className="h-10 sm:h-11 flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-3 sm:px-3.5 rounded-full text-neutral-900 text-xs font-semibold transition-all"
+                aria-label="User Account Menu"
               >
-                <div className="w-6 h-6 rounded-full overflow-hidden bg-brand/30 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-brand/30 flex items-center justify-center shrink-0">
                   {user.avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
@@ -126,7 +142,7 @@ export default function Navbar() {
                     <UserIcon className="w-3.5 h-3.5 text-brand" />
                   )}
                 </div>
-                <span className="font-oswald tracking-wide uppercase max-w-[90px] truncate text-neutral-900">
+                <span className="font-oswald tracking-wide uppercase max-w-[80px] sm:max-w-[100px] truncate text-neutral-900">
                   {user.name.split(" ")[0]}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-neutral-500" />
@@ -153,6 +169,24 @@ export default function Navbar() {
                   </Link>
 
                   <Link
+                    href="/profile"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                  >
+                    <UserIcon className="w-4 h-4 text-neutral-600" />
+                    <span>Account Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/notifications"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                  >
+                    <Bell className="w-4 h-4 text-amber-500" />
+                    <span>Notifications & Handover</span>
+                  </Link>
+
+                  <Link
                     href="/list-tool"
                     onClick={() => setUserDropdownOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
@@ -173,7 +207,7 @@ export default function Navbar() {
                           user.isOwner ? "bg-brand text-white shadow-xs" : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"
                         }`}
                       >
-                        <Wrench className="w-3 h-3" /> Tool Owner
+                        <Wrench className="w-3 h-3" /> Owner
                       </button>
                       <button
                         onClick={() => switchAccount("borrower")}
@@ -200,11 +234,11 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Link href="/login">
                 <Button
                   variant="ghost"
-                  className="h-11 px-3.5 text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 font-oswald font-bold text-xs sm:text-sm uppercase tracking-wider rounded-full transition-colors"
+                  className="h-10 sm:h-11 px-3 sm:px-3.5 text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 font-oswald font-bold text-xs sm:text-sm uppercase tracking-wider rounded-full transition-colors"
                 >
                   Log In
                 </Button>
@@ -212,7 +246,7 @@ export default function Navbar() {
               <Link href="/register">
                 <Button
                   variant="outline"
-                  className="h-11 px-5 border-neutral-300 text-neutral-900 bg-neutral-100 hover:bg-neutral-200 font-oswald text-xs sm:text-sm font-bold uppercase tracking-wider rounded-full hover:scale-[1.03] active:scale-[0.98] transition-all"
+                  className="h-10 sm:h-11 px-3.5 sm:px-5 border-neutral-300 text-neutral-900 bg-neutral-100 hover:bg-neutral-200 font-oswald text-xs sm:text-sm font-bold uppercase tracking-wider rounded-full hover:scale-[1.03] active:scale-[0.98] transition-all"
                 >
                   Sign Up
                 </Button>
@@ -223,7 +257,8 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 text-neutral-700 hover:text-neutral-900"
+            className="md:hidden p-2 text-neutral-700 hover:text-neutral-900 rounded-full hover:bg-neutral-100 transition-colors"
+            aria-label="Toggle Mobile Navigation"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -232,46 +267,91 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="md:hidden mt-2 bg-white border border-neutral-200 rounded-3xl p-5 shadow-2xl text-neutral-900 space-y-3">
+        <div className="md:hidden mt-2 bg-white border border-neutral-200 rounded-3xl p-5 shadow-2xl text-neutral-900 space-y-3 animate-in fade-in slide-in-from-top-2">
           <Link
             href="/"
             onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold hover:text-brand"
+            className="block text-sm font-semibold hover:text-brand px-2 py-1"
           >
             Home
           </Link>
           <Link
             href="/browse"
             onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold hover:text-brand"
+            className="block text-sm font-semibold hover:text-brand px-2 py-1"
           >
-            Browse Tools
+            Browse Catalog
           </Link>
           <Link
             href="/list-tool"
             onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold hover:text-brand text-brand"
+            className="block text-sm font-semibold text-brand hover:text-brand-hover px-2 py-1"
           >
-            + List a Tool
+            + List a Tool for Rent
           </Link>
+          {user && (
+            <>
+              <Link
+                href={user.isOwner ? "/owner-dashboard" : "/bookings"}
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1"
+              >
+                {user.isOwner ? "Owner Dashboard" : "My Bookings & QR"}
+              </Link>
+              <Link
+                href="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1"
+              >
+                My Profile
+              </Link>
+              <Link
+                href="/notifications"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1"
+              >
+                Notifications
+              </Link>
+            </>
+          )}
+          <Link
+            href="/help"
+            onClick={() => setMobileOpen(false)}
+            className="block text-sm font-semibold hover:text-brand px-2 py-1"
+          >
+            Help & FAQs
+          </Link>
+          <Link
+            href="/terms"
+            onClick={() => setMobileOpen(false)}
+            className="block text-xs text-muted-foreground hover:text-foreground px-2 py-1"
+          >
+            Terms of Rental
+          </Link>
+
           {user ? (
-            <Link
-              href={user.isOwner ? "/owner-dashboard" : "/bookings"}
-              onClick={() => setMobileOpen(false)}
-              className="block text-sm font-semibold hover:text-brand"
-            >
-              {user.isOwner ? "Owner Dashboard" : "My Bookings"}
-            </Link>
+            <div className="pt-3 border-t border-neutral-100 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+              <button
+                onClick={() => {
+                  logout();
+                  setMobileOpen(false);
+                }}
+                className="text-xs font-bold text-red-600 hover:underline"
+              >
+                Sign Out
+              </button>
+            </div>
           ) : (
-            <div className="pt-2 border-t border-white/10 flex gap-2">
+            <div className="pt-3 border-t border-neutral-100 flex gap-2">
               <Link href="/login" onClick={() => setMobileOpen(false)} className="flex-1">
-                <Button variant="default" size="sm" className="w-full">
+                <Button variant="default" size="sm" className="w-full bg-brand hover:bg-brand-hover text-white font-bold">
                   Login
                 </Button>
               </Link>
               <Link href="/register" onClick={() => setMobileOpen(false)} className="flex-1">
-                <Button variant="outline" size="sm" className="w-full border-white/20 text-white">
-                  Register
+                <Button variant="outline" size="sm" className="w-full border-neutral-300 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-bold">
+                  Sign Up
                 </Button>
               </Link>
             </div>

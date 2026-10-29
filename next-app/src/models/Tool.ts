@@ -11,8 +11,9 @@ export interface ITool extends Document {
   city: string;
   address: string;
   specs: Record<string, string>;
-  owner: mongoose.Types.ObjectId;
+  owner?: mongoose.Types.ObjectId;
   ownerName: string;
+  ownerEmail?: string;
   isAvailable: boolean;
   rating: number;
   reviewsCount: number;
@@ -29,6 +30,7 @@ const ToolSchema: Schema = new Schema(
       type: String,
       required: true,
       enum: ["POWER_TOOLS", "HAND_TOOLS", "GARDEN", "HEAVY_EQUIPMENT", "WOODWORKING", "CLEANING"],
+      index: true,
     },
     condition: {
       type: String,
@@ -36,22 +38,25 @@ const ToolSchema: Schema = new Schema(
       enum: ["BRAND_NEW", "LIKE_NEW", "GOOD", "FAIR"],
       default: "LIKE_NEW",
     },
-    ratePerDay: { type: Number, required: true },
+    ratePerDay: { type: Number, required: true, index: true },
     deposit: { type: Number, default: 0 },
     images: [{ type: String }],
-    city: { type: String, default: "Mumbai" },
+    city: { type: String, default: "Mumbai", index: true },
     address: { type: String, default: "Andheri West, Mumbai" },
     specs: { type: Map, of: String, default: {} },
     owner: { type: Schema.Types.ObjectId, ref: "User" },
     ownerName: { type: String, default: "Tool Owner" },
-    isAvailable: { type: Boolean, default: true },
+    ownerEmail: { type: String, default: "", index: true },
+    isAvailable: { type: Boolean, default: true, index: true },
     rating: { type: Number, default: 4.8 },
     reviewsCount: { type: Number, default: 8 },
-    featured: { type: Boolean, default: false },
+    featured: { type: Boolean, default: false, index: true },
     model3DType: { type: String, default: "drill" },
   },
   { timestamps: true }
 );
+
+ToolSchema.index({ featured: -1, createdAt: -1 });
 
 export const Tool: Model<ITool> =
   mongoose.models.Tool || mongoose.model<ITool>("Tool", ToolSchema);

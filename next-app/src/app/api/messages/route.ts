@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { addBookingMessage, getBookings } from "@/lib/data-store";
+import { getServerSession } from "@/lib/server-auth";
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(request);
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get("bookingId");
-    const userEmail = searchParams.get("userEmail");
+    const userEmail = (session?.email || searchParams.get("userEmail") || "").toLowerCase().trim();
 
-    const bookings = await getBookings(userEmail || undefined);
+    if (!userEmail) {
+      return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 });
+    }
+
+    const bookings = await getBookings(userEmail);
 
     if (bookingId) {
       const b = bookings.find((item) => item.id === bookingId || item._id === bookingId);
       if (!b) {
         return NextResponse.json(
-          { success: false, error: "Booking not found" },
+          { success: false, error: "Booking conversation not found or access denied" },
           { status: 404 }
         );
       }
@@ -53,6 +59,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(request);
     const { bookingId, senderName, senderEmail, text } = await request.json();
 
     if (!bookingId || !text || !text.trim()) {
@@ -62,9 +69,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const effectiveName = session?.name || senderName || "User";
+    const effectiveEmail = session?.email || senderEmail || "unknown@toolshare.in";
+
     const result = await addBookingMessage(bookingId, {
-      senderName: senderName || "User",
-      senderEmail: senderEmail || "unknown@toolshare.in",
+      senderName: effectiveName,
+      senderEmail: effectiveEmail,
       text: text.trim(),
     });
 

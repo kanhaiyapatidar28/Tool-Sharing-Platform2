@@ -60,18 +60,10 @@ export default function RegisterPage() {
         throw new Error(data.error || "Registration failed");
       }
 
-      const registeredUser = {
-        ...data.user,
-        password,
-      };
+      // Log in with authenticated user session returned by server
+      login(data.user);
 
-      // 2. Persist in local registered credentials database
-      saveRegisteredUser(registeredUser);
-
-      // 3. Log in as this newly registered user
-      login(registeredUser);
-
-      // 4. Role-based redirect to respective dashboard
+      // Role-based redirect to respective dashboard
       if (selectedRole === "owner") {
         router.push("/owner-dashboard");
       } else {

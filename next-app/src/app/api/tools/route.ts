@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTools, createTool } from "@/lib/data-store";
+import { getServerSession } from "@/lib/server-auth";
 
 export async function GET(request: Request) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
       { success: true, tools, count: tools.length },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+          "Cache-Control": "public, s-maxage=10, stale-while-revalidate=60",
         },
       }
     );
@@ -25,11 +26,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(request);
     const body = await request.json();
+
     if (!body.title || !body.ratePerDay) {
       return NextResponse.json({ success: false, error: "Title and ratePerDay are required" }, { status: 400 });
     }
-    const newTool = await createTool(body);
+
+    const payload = {
+      ...body,
+      ownerName: session?.name || body.ownerName || "Tool Owner",
+      ownerEmail: session?.email || body.ownerEmail || "owner@toolshare.in",
+    };
+
+    const newTool = await createTool(payload);
     return NextResponse.json({ success: true, tool: newTool }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

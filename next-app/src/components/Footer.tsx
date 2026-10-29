@@ -13,16 +13,21 @@ export default function Footer() {
               <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white">
                 <Wrench className="w-4 h-4" />
               </div>
-              <span className="font-oswald text-xl uppercase tracking-wider text-white font-bold">
-                Household Tools
-              </span>
+              <div className="flex flex-col">
+                <span className="font-oswald text-xl uppercase tracking-wider text-white font-bold leading-none">
+                  ToolShare
+                </span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-brand leading-tight">
+                  India
+                </span>
+              </div>
             </Link>
             <p className="text-xs text-white/60 leading-relaxed">
-              India&apos;s premier peer-to-peer equipment & tool rental platform. Built with Next.js, MongoDB, and Tailwind CSS.
+              India&apos;s peer-to-peer equipment & tool rental marketplace. Connect with verified neighbors, save up to 70% on DIY projects, and earn passive income from idle tools.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <span className="text-xs font-semibold text-white/80 bg-white/5 border border-white/10 px-3 py-1 rounded-full flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand" /> ₹50,000 Tool Protection
+                <ShieldCheck className="w-3.5 h-3.5 text-brand" /> Verified Peer-to-Peer Gear
               </span>
             </div>
           </div>
@@ -55,7 +60,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/browse?category=HEAVY_EQUIPMENT" className="hover:text-brand transition-colors">
-                  🏗️ Ladders & Tile Cutters
+                  🏗️ Telescopic Ladders & Tile Cutters
                 </Link>
               </li>
             </ul>
@@ -69,7 +74,7 @@ export default function Footer() {
             <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/list-tool" className="hover:text-brand transition-colors flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" /> List Your Tool
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" /> List Your Tool for Rent
                 </Link>
               </li>
               <li>
@@ -78,10 +83,14 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <span className="text-white/40 cursor-default">Damage Protection Guarantee</span>
+                <Link href="/terms" className="hover:text-brand transition-colors">
+                  Damage Protection Guidelines
+                </Link>
               </li>
               <li>
-                <span className="text-white/40 cursor-default">Owner Community Guidelines</span>
+                <Link href="/help" className="hover:text-brand transition-colors">
+                  Owner Community Standards & FAQ
+                </Link>
               </li>
             </ul>
           </div>
@@ -89,35 +98,43 @@ export default function Footer() {
           {/* Trust & Guarantee */}
           <div className="space-y-3">
             <h4 className="font-oswald uppercase text-sm tracking-wider text-white font-bold">
-              Security & Verification
+              Community Safeguards
             </h4>
             <div className="space-y-2 text-xs">
               <div className="flex items-center gap-2 text-white/70">
                 <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Escrow Secured Deposits</span>
+                <span>Refundable Security Deposit Holds</span>
               </div>
               <div className="flex items-center gap-2 text-white/70">
                 <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>Aadhaar & OTP Verified Members</span>
+                <span>Verified Contact & Reputation System</span>
               </div>
               <div className="flex items-center gap-2 text-white/70">
                 <ShieldCheck className="w-3.5 h-3.5 text-brand" />
-                <span>QR Handover Verification</span>
+                <span>Dynamic ISO-18004 Handover QR Tokens</span>
               </div>
             </div>
             <div className="pt-2 text-[11px] text-white/50">
-              📍 Mumbai • Pune • Bangalore • Delhi NCR
+              📍 Serving Mumbai • Pune • Bangalore • Delhi NCR
             </div>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-white/50 gap-4">
-          <p>© {new Date().getFullYear()} Household Tools Inc. Made with <Heart className="inline w-3 h-3 text-red-500 mx-0.5 fill-red-500" /> for Indian Communities.</p>
-          <div className="flex items-center gap-4">
-            <span className="hover:text-white cursor-pointer">Privacy Policy</span>
+          <p>© {new Date().getFullYear()} ToolShare India. Built for neighborhood makers & builders.</p>
+          <div className="flex items-center gap-4 flex-wrap">
+            <Link href="/privacy" className="hover:text-white transition-colors">
+              Privacy Policy
+            </Link>
             <span>•</span>
-            <span className="hover:text-white cursor-pointer">Terms of Rental</span>
+            <Link href="/terms" className="hover:text-white transition-colors">
+              Terms of Rental
+            </Link>
+            <span>•</span>
+            <Link href="/help" className="hover:text-white transition-colors">
+              Help Center
+            </Link>
             <span>•</span>
             <span className="text-brand font-semibold">Next.js + MongoDB + Tailwind CSS</span>
           </div>

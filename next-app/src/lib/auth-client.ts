@@ -139,8 +139,37 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(getStoredUser());
-    setLoading(false);
+    // 1. Initial optimistic load from localStorage
+    const cached = getStoredUser();
+    if (cached) setUser(cached);
+
+    // 2. Authoritative check with server session cookie
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data.user) {
+          const synced: AuthUser = {
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            role: data.user.role,
+            isOwner: data.user.isOwner,
+            avatar: data.user.avatar,
+            phone: data.user.phone,
+            city: data.user.city,
+          };
+          setStoredUser(synced);
+          setUser(synced);
+        } else if (!cached) {
+          setUser(null);
+        }
+      })
+      .catch(() => {
+        // Network or offline fallback: keep cached user
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     // Sync across tabs
     const handleStorage = (e: StorageEvent) => {
@@ -162,7 +191,12 @@ export function useAuth() {
     setUser(sanitized);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore network errors on logout
+    }
     setStoredUser(null);
     setUser(null);
   };

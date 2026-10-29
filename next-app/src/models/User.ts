@@ -4,6 +4,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
+  role: "owner" | "borrower" | "admin";
   isOwner: boolean;
   avatar?: string;
   phone?: string;
@@ -19,6 +20,7 @@ const UserSchema: Schema = new Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String },
+    role: { type: String, enum: ["owner", "borrower", "admin"], default: "borrower" },
     isOwner: { type: Boolean, default: false },
     avatar: { type: String, default: "" },
     phone: { type: String, default: "+91 98765 43210" },

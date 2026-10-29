@@ -66,7 +66,13 @@ export default function OwnerDashboardPage() {
         const statsData = await statsRes.json();
 
         if (toolsData.tools) {
-          setTools(toolsData.tools.filter((t: any) => t.ownerEmail === ownerEmail || ownerEmail.includes("owner")));
+          setTools(
+            toolsData.tools.filter(
+              (t: any) =>
+                (t.ownerEmail && t.ownerEmail.toLowerCase() === ownerEmail.toLowerCase()) ||
+                (user && t.ownerName.toLowerCase() === user.name.toLowerCase())
+            )
+          );
         }
         if (bookingsData.bookings) {
           setBookings(bookingsData.bookings);

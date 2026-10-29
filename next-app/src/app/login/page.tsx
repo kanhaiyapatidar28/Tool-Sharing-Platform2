@@ -47,25 +47,7 @@ export default function LoginPage() {
     try {
       const normalizedInput = emailOrUsername.toLowerCase().trim();
 
-      // 1. Check local registered users first (for any accounts created via /register)
-      const registeredList = getRegisteredUsers();
-      const localMatch = registeredList.find(
-        (u) =>
-          u.email.toLowerCase() === normalizedInput &&
-          (u.password === password || password === "password123")
-      );
-
-      if (localMatch) {
-        login(localMatch);
-        if (localMatch.role === "owner" || localMatch.isOwner) {
-          router.push("/owner-dashboard");
-        } else {
-          router.push("/bookings");
-        }
-        return;
-      }
-
-      // 2. Call backend login API
+      // Call authoritative backend login API
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,7 +59,7 @@ export default function LoginPage() {
       });
 
       const data = await res.json();
-      if (data.success && data.user) {
+      if (res.ok && data.success && data.user) {
         const user = {
           ...data.user,
           role: data.user.role || (data.user.isOwner ? "owner" : "borrower"),
@@ -225,9 +207,17 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5" /> Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> Password
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-[11px] font-bold text-brand hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input
             required
             type="password"
