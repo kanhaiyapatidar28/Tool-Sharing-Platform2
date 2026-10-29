@@ -64,10 +64,12 @@ export default function RegisterPage() {
       login(data.user);
 
       // Role-based redirect to respective dashboard
-      if (selectedRole === "owner") {
-        router.push("/owner-dashboard");
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
+      } else if (selectedRole === "owner") {
+        router.push("/owner/dashboard");
       } else {
-        router.push("/bookings");
+        router.push("/borrower/dashboard");
       }
     } catch (err: any) {
       setError(err.message || "Failed to create account");

@@ -54,7 +54,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           emailOrUsername: normalizedInput,
           password,
-          roleHint: activeRoleTab,
+          selectedRole: activeRoleTab,
         }),
       });
 
@@ -68,10 +68,12 @@ export default function LoginPage() {
         login(user);
 
         // Redirect according to registered role
-        if (user.role === "owner" || user.isOwner) {
-          router.push("/owner-dashboard");
+        if (data.redirectUrl) {
+          router.push(data.redirectUrl);
+        } else if (user.role === "owner" || user.isOwner) {
+          router.push("/owner/dashboard");
         } else {
-          router.push("/bookings");
+          router.push("/borrower/dashboard");
         }
       } else {
         setError(data.error || "Invalid credentials for this role.");

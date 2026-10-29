@@ -9,7 +9,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import QRCode from "qrcode";
+import ToolQRModal from "@/components/ToolQRModal";
 import {
   Star,
   MapPin,
@@ -26,6 +26,8 @@ import {
   QrCode,
   X,
   Download,
+  Wrench,
+  Edit3,
 } from "lucide-react";
 
 function getConditionVariant(cond: string): "success" | "info" | "secondary" | "warning" {
@@ -52,9 +54,8 @@ export default function ToolDetailPage() {
   const [loading, setLoading] = useState(!initial);
   const [selectedPhoto, setSelectedPhoto] = useState<string>(initial?.images?.[0] || "/assets/drill machine.png");
 
-  // Tool Real QR Modal state
+  // Tool QR modal state
   const [showToolQr, setShowToolQr] = useState(false);
-  const [toolQrDataUrl, setToolQrDataUrl] = useState<string>("");
 
   // Booking form state
   const todayStr = new Date().toISOString().split("T")[0];
@@ -82,22 +83,13 @@ export default function ToolDetailPage() {
     setBookingError("");
   };
 
-  useEffect(() => {
-    if (tool && showToolQr) {
-      const payload = JSON.stringify({
-        platform: "ToolShare India",
-        type: "EQUIPMENT_SPEC_TAG",
-        toolId: tool.id || tool._id,
-        title: tool.title,
-        owner: tool.ownerName,
-        ratePerDay: tool.ratePerDay,
-        deposit: tool.deposit,
-        city: tool.city,
-        verified: true,
-      });
-      QRCode.toDataURL(payload, { width: 320, margin: 2 }).then(setToolQrDataUrl);
-    }
-  }, [tool, showToolQr]);
+  const isOwner = Boolean(
+    user && tool && (
+      (tool.ownerId && user.id === tool.ownerId) ||
+      (tool.ownerEmail && user.email?.toLowerCase() === tool.ownerEmail?.toLowerCase()) ||
+      (user.role === "owner" && tool.ownerName && user.name.toLowerCase() === tool.ownerName.toLowerCase())
+    )
+  );
 
   useEffect(() => {
     async function loadTool() {
@@ -494,14 +486,50 @@ export default function ToolDetailPage() {
             )}
 
             {/* Booking Action / Modal State */}
-            {bookingSuccess ? (
+            {isOwner ? (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 space-y-3">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <Wrench className="w-4 h-4 text-brand" /> You are the owner of this equipment
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  As the owner, you cannot book your own listing. You can update this listing, toggle availability, or generate printable equipment QR stickers.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <Link href={`/owner/tools/${tool.id || tool._id}/edit`}>
+                    <Button variant="default" size="sm" className="w-full font-bold">
+                      <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit Listing
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowToolQr(true)}
+                    className="w-full font-bold"
+                  >
+                    <QrCode className="w-3.5 h-3.5 mr-1.5" /> Print QR Tag
+                  </Button>
+                </div>
+              </div>
+            ) : !tool.isAvailable ? (
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 space-y-2 text-center">
+                <h4 className="font-oswald text-base font-bold uppercase">Equipment Unavailable</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This tool is currently rented or marked unavailable by the owner. Please check back later or explore similar equipment.
+                </p>
+                <Link href="/borrower/explore" className="block pt-1">
+                  <Button variant="outline" size="sm" className="w-full font-bold">
+                    Browse Other Tools
+                  </Button>
+                </Link>
+              </div>
+            ) : bookingSuccess ? (
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 space-y-3 text-center">
                 <Check className="w-8 h-8 mx-auto bg-emerald-500 text-white rounded-full p-1.5" />
                 <h4 className="font-oswald text-lg font-bold uppercase">Rental Confirmed!</h4>
                 <p className="text-xs leading-relaxed">
                   Your reservation is saved. Access your pickup QR code and chat with {tool.ownerName} in your rentals dashboard.
                 </p>
-                <Link href="/bookings" className="block pt-1">
+                <Link href="/borrower/bookings" className="block pt-1">
                   <Button variant="default" size="sm" className="w-full font-bold">
                     View My Active Rentals
                   </Button>
@@ -525,80 +553,12 @@ export default function ToolDetailPage() {
         </div>
       </div>
 
-      {/* Real Tool Hardware QR Modal */}
+      {/* Tool QR Sticker Modal */}
       {showToolQr && tool && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-card rounded-3xl border border-border/80 p-6 sm:p-7 max-w-sm w-full text-center space-y-4 shadow-2xl relative">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-brand flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Live Tool Hardware QR
-              </span>
-              <button
-                onClick={() => setShowToolQr(false)}
-                className="w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-muted-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="text-left bg-neutral-50 dark:bg-neutral-900/60 p-3 rounded-2xl border border-border/60 flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-white p-1 border border-border shrink-0 flex items-center justify-center overflow-hidden">
-                <Image
-                  src={tool.images?.[0] || "/assets/drill machine.png"}
-                  alt={tool.title}
-                  width={48}
-                  height={48}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="font-oswald text-sm font-bold uppercase text-foreground truncate">
-                  {tool.title}
-                </h4>
-                <p className="text-[11px] text-muted-foreground">
-                  Owner: <span className="font-semibold text-foreground">{tool.ownerName}</span> • {formatCurrency(tool.ratePerDay)}/day
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-white rounded-2xl inline-block shadow-lg border-2 border-neutral-200 mx-auto">
-              {toolQrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={toolQrDataUrl}
-                  alt="Real Tool QR"
-                  className="w-52 h-52 object-contain rounded-lg"
-                />
-              ) : (
-                <div className="w-52 h-52 flex items-center justify-center text-xs text-muted-foreground">
-                  Generating Real QR...
-                </div>
-              )}
-            </div>
-
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Scan with any mobile camera on-site to verify tool specifications and initiate instant checkout.
-            </p>
-
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                if (!toolQrDataUrl) return;
-                const link = document.createElement("a");
-                link.href = toolQrDataUrl;
-                link.download = `Tool-QR-${tool.id}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="w-full bg-brand hover:bg-brand-hover text-white font-bold rounded-xl"
-            >
-              <Download className="w-3.5 h-3.5 mr-1.5" /> Save / Print Tool QR
-            </Button>
-          </div>
-        </div>
+        <ToolQRModal
+          tool={tool}
+          onClose={() => setShowToolQr(false)}
+        />
       )}
     </div>
   );

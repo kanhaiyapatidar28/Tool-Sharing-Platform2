@@ -74,11 +74,15 @@ export async function POST(request: Request) {
     const token = createSessionToken(userPayload);
     const cookieHeader = buildSessionCookieHeader(token);
 
+    const redirectUrl =
+      assignedRole === "owner" ? "/owner/dashboard" : "/borrower/dashboard";
+
     return new NextResponse(
       JSON.stringify({
         success: true,
         user: userPayload,
         token,
+        redirectUrl,
         message: `Account created successfully as ${assignedRole.toUpperCase()}`,
       }),
       {

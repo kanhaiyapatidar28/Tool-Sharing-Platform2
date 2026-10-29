@@ -73,12 +73,12 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link href="/list-tool" className="hover:text-brand transition-colors flex items-center gap-1">
+                <Link href="/owner/tools/new" className="hover:text-brand transition-colors flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" /> List Your Tool for Rent
                 </Link>
               </li>
               <li>
-                <Link href="/owner-dashboard" className="hover:text-brand transition-colors">
+                <Link href="/owner/dashboard" className="hover:text-brand transition-colors">
                   Owner Dashboard & Earnings
                 </Link>
               </li>

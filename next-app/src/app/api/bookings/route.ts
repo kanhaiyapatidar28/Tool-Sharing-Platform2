@@ -92,6 +92,18 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+      if (err.message === "CANNOT_RENT_OWN_TOOL") {
+        return NextResponse.json(
+          { success: false, error: "You cannot rent your own equipment." },
+          { status: 403 }
+        );
+      }
+      if (err.message === "TOOL_NOT_AVAILABLE_FOR_RENTAL") {
+        return NextResponse.json(
+          { success: false, error: "This tool is currently unpublished or not available for rental." },
+          { status: 400 }
+        );
+      }
       if (err.message === "TOOL_NOT_FOUND") {
         return NextResponse.json({ success: false, error: "Equipment not found." }, { status: 404 });
       }

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,41 +15,28 @@ import {
   LayoutDashboard,
   LogOut,
   ChevronDown,
-  Sparkles,
   ShoppingBag,
   Bell,
-  HelpCircle,
+  Heart,
+  CalendarCheck,
+  Compass,
 } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, login, logout } = useAuth();
+  const router = useRouter();
+  const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const switchAccount = (role: "owner" | "borrower") => {
-    if (role === "owner") {
-      login({
-        id: "usr-owner-1",
-        name: "John Owner",
-        email: "owner@toolshare.in",
-        role: "owner",
-        isOwner: true,
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80",
-        city: "Mumbai",
-      });
-    } else {
-      login({
-        id: "usr-borrower-1",
-        name: "Bob Borrower",
-        email: "borrower@toolshare.in",
-        role: "borrower",
-        isOwner: false,
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80",
-        city: "Mumbai",
-      });
-    }
+  const isOwner = user?.role === "owner" || (user?.isOwner && user?.role !== "borrower");
+  const isBorrower = user?.role === "borrower" || (!user?.isOwner && Boolean(user));
+
+  const handleLogout = async () => {
+    await logout();
     setUserDropdownOpen(false);
+    setMobileOpen(false);
+    router.push("/login");
   };
 
   return (
@@ -70,63 +57,191 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 bg-neutral-100 border border-neutral-200/80 rounded-full px-4 py-1.5 text-sm text-neutral-700 font-medium">
-          <Link
-            href="/#about"
-            className="px-3 py-1 rounded-full hover:text-neutral-900 hover:bg-white transition-colors"
-          >
-            About Us
-          </Link>
-          <Link
-            href="/#how-it-works"
-            className="px-3 py-1 rounded-full hover:text-neutral-900 hover:bg-white transition-colors"
-          >
-            How it Works
-          </Link>
-          <div className="w-[1px] h-4 bg-neutral-300 mx-1" />
-          <Link
-            href="/browse"
-            className={`px-3 py-1 rounded-full transition-colors ${
-              pathname === "/browse"
-                ? "bg-brand text-white font-semibold shadow-xs"
-                : "hover:text-neutral-900 hover:bg-white"
-            }`}
-          >
-            Browse Tools
-          </Link>
-          {user && (
-            <Link
-              href={user.isOwner ? "/owner-dashboard" : "/bookings"}
-              className={`px-3 py-1 rounded-full transition-colors ${
-                pathname === "/owner-dashboard" || pathname === "/bookings"
-                  ? "bg-neutral-200 text-neutral-900 font-semibold"
-                  : "hover:text-neutral-900 hover:bg-white"
-              }`}
-            >
-              {user.isOwner ? "Owner Dashboard" : "My Rentals"}
-            </Link>
+        {/* Dynamic Role-Based Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-1 bg-neutral-100 border border-neutral-200/80 rounded-full px-4 py-1.5 text-xs sm:text-sm text-neutral-700 font-medium">
+          {loading ? (
+            <div className="h-6 w-48 bg-neutral-200/70 rounded-full animate-pulse" />
+          ) : user && isOwner ? (
+            /* ================= OWNER NAVBAR ================= */
+            <>
+              <Link
+                href="/owner/dashboard"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/owner/dashboard" || pathname === "/owner-dashboard"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/owner/tools"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/owner/tools"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                My Tools
+              </Link>
+              <Link
+                href="/owner/tools/new"
+                className={`px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${
+                  pathname === "/owner/tools/new" || pathname === "/list-tool"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Add Tool</span>
+              </Link>
+              <Link
+                href="/owner/bookings"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/owner/bookings"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Incoming Bookings
+              </Link>
+              <Link
+                href="/profile"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/profile"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Profile
+              </Link>
+            </>
+          ) : user && isBorrower ? (
+            /* ================= BORROWER NAVBAR ================= */
+            <>
+              <Link
+                href="/borrower/dashboard"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/borrower/dashboard"
+                    ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/borrower/explore"
+                className={`px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${
+                  pathname === "/borrower/explore" || pathname === "/browse"
+                    ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Explore Tools</span>
+              </Link>
+              <Link
+                href="/borrower/bookings"
+                className={`px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${
+                  pathname === "/borrower/bookings" || pathname === "/bookings"
+                    ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                <CalendarCheck className="w-3.5 h-3.5" />
+                <span>My Rentals</span>
+              </Link>
+              <Link
+                href="/borrower/explore?wishlist=true"
+                className={`px-3 py-1 rounded-full transition-colors flex items-center gap-1 ${
+                  pathname.includes("wishlist")
+                    ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                <Heart className="w-3.5 h-3.5" />
+                <span>Wishlist</span>
+              </Link>
+              <Link
+                href="/profile"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/profile"
+                    ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Profile
+              </Link>
+            </>
+          ) : (
+            /* ================= PUBLIC NAVBAR ================= */
+            <>
+              <Link
+                href="/"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                href="/browse"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/browse"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Explore
+              </Link>
+              <Link
+                href="/#how-it-works"
+                className="px-3 py-1 rounded-full hover:text-neutral-900 hover:bg-white transition-colors"
+              >
+                How it Works
+              </Link>
+              <Link
+                href="/help"
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  pathname === "/help"
+                    ? "bg-brand text-white font-semibold shadow-xs"
+                    : "hover:text-neutral-900 hover:bg-white"
+                }`}
+              >
+                Help
+              </Link>
+            </>
           )}
-          <Link
-            href="/help"
-            className="px-3 py-1 rounded-full hover:text-neutral-900 hover:bg-white transition-colors text-xs font-semibold"
-          >
-            Help
-          </Link>
         </nav>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/list-tool" className="hidden sm:inline-block">
-            <Button
-              variant="pill"
-              className="h-10 sm:h-11 px-4 sm:px-6 bg-brand hover:bg-brand-hover text-white font-oswald uppercase tracking-wider text-xs sm:text-sm font-bold shadow-lg shadow-brand/30 hover:shadow-brand/50 hover:scale-[1.03] active:scale-[0.98] transition-all rounded-full"
-            >
-              <PlusCircle className="w-4 h-4 mr-1.5 sm:mr-2" /> List a Tool
-            </Button>
-          </Link>
+          {/* Action Button depending on role */}
+          {user && isOwner && (
+            <Link href="/owner/tools/new" className="hidden sm:inline-block">
+              <Button
+                variant="pill"
+                className="h-10 sm:h-11 px-4 sm:px-5 bg-brand hover:bg-brand-hover text-white font-oswald uppercase tracking-wider text-xs sm:text-sm font-bold shadow-lg shadow-brand/30 hover:scale-[1.03] active:scale-[0.98] transition-all rounded-full"
+              >
+                <PlusCircle className="w-4 h-4 mr-1.5" /> Add Tool
+              </Button>
+            </Link>
+          )}
 
-          {/* User Profile or Login */}
+          {user && isBorrower && (
+            <Link href="/borrower/explore" className="hidden sm:inline-block">
+              <Button
+                variant="pill"
+                className="h-10 sm:h-11 px-4 sm:px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-oswald uppercase tracking-wider text-xs sm:text-sm font-bold shadow-lg shadow-emerald-600/30 hover:scale-[1.03] active:scale-[0.98] transition-all rounded-full"
+              >
+                <Compass className="w-4 h-4 mr-1.5" /> Rent Tools
+              </Button>
+            </Link>
+          )}
+
+          {/* User Profile Menu or Guest Login/Register */}
           {user ? (
             <div className="relative">
               <button
@@ -154,19 +269,77 @@ export default function Navbar() {
                   <div className="px-3 py-2 border-b border-neutral-100 mb-1">
                     <p className="font-bold text-sm uppercase font-oswald text-neutral-900">{user.name}</p>
                     <p className="text-[11px] text-neutral-500 truncate">{user.email}</p>
-                    <Badge variant={user.isOwner ? "default" : "info"} className="mt-1.5 text-[10px]">
-                      {user.isOwner ? "Tool Owner" : "Borrower"}
+                    <Badge
+                      variant={isOwner ? "default" : "info"}
+                      className={`mt-1.5 text-[10px] ${isOwner ? "bg-brand text-white" : "bg-emerald-600 text-white"}`}
+                    >
+                      {isOwner ? "Tool Owner" : "Borrower"}
                     </Badge>
                   </div>
 
-                  <Link
-                    href={user.isOwner ? "/owner-dashboard" : "/bookings"}
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
-                  >
-                    <LayoutDashboard className="w-4 h-4 text-brand" />
-                    <span>{user.isOwner ? "Owner Dashboard" : "My Rentals"}</span>
-                  </Link>
+                  {isOwner ? (
+                    <>
+                      <Link
+                        href="/owner/dashboard"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-brand" />
+                        <span>Owner Dashboard</span>
+                      </Link>
+                      <Link
+                        href="/owner/tools"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <Wrench className="w-4 h-4 text-brand" />
+                        <span>My Tool Listings</span>
+                      </Link>
+                      <Link
+                        href="/owner/tools/new"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <PlusCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Add New Tool</span>
+                      </Link>
+                      <Link
+                        href="/owner/bookings"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <CalendarCheck className="w-4 h-4 text-brand" />
+                        <span>Incoming Bookings</span>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/borrower/dashboard"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-emerald-600" />
+                        <span>Borrower Dashboard</span>
+                      </Link>
+                      <Link
+                        href="/borrower/explore"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <Compass className="w-4 h-4 text-emerald-600" />
+                        <span>Explore Marketplace</span>
+                      </Link>
+                      <Link
+                        href="/borrower/bookings"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
+                      >
+                        <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                        <span>My Rentals</span>
+                      </Link>
+                    </>
+                  )}
 
                   <Link
                     href="/profile"
@@ -174,7 +347,7 @@ export default function Navbar() {
                     className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
                   >
                     <UserIcon className="w-4 h-4 text-neutral-600" />
-                    <span>Account Profile</span>
+                    <span>Profile & Account</span>
                   </Link>
 
                   <Link
@@ -183,53 +356,18 @@ export default function Navbar() {
                     className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
                   >
                     <Bell className="w-4 h-4 text-amber-500" />
-                    <span>Notifications & Handover</span>
+                    <span>Notifications</span>
                   </Link>
 
-                  <Link
-                    href="/list-tool"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-neutral-100 transition-colors"
-                  >
-                    <PlusCircle className="w-4 h-4 text-emerald-600" />
-                    <span>Add New Tool Listing</span>
-                  </Link>
-
-                  {/* Quick Role Switcher */}
-                  <div className="px-3 py-1.5 my-1 border-t border-b border-neutral-100">
-                    <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-amber-500" /> Switch Role:
-                    </p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        onClick={() => switchAccount("owner")}
-                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-1 ${
-                          user.isOwner ? "bg-brand text-white shadow-xs" : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"
-                        }`}
-                      >
-                        <Wrench className="w-3 h-3" /> Owner
-                      </button>
-                      <button
-                        onClick={() => switchAccount("borrower")}
-                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-1 ${
-                          !user.isOwner ? "bg-emerald-600 text-white shadow-xs" : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"
-                        }`}
-                      >
-                        <ShoppingBag className="w-3 h-3" /> Borrower
-                      </button>
-                    </div>
+                  <div className="pt-1 mt-1 border-t border-neutral-100">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-red-50 text-red-600 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      logout();
-                      setUserDropdownOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-red-50 text-red-600 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
-                  </button>
                 </div>
               )}
             </div>
@@ -240,7 +378,7 @@ export default function Navbar() {
                   variant="ghost"
                   className="h-10 sm:h-11 px-3 sm:px-3.5 text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 font-oswald font-bold text-xs sm:text-sm uppercase tracking-wider rounded-full transition-colors"
                 >
-                  Log In
+                  Login
                 </Button>
               </Link>
               <Link href="/register">
@@ -248,13 +386,13 @@ export default function Navbar() {
                   variant="outline"
                   className="h-10 sm:h-11 px-3.5 sm:px-5 border-neutral-300 text-neutral-900 bg-neutral-100 hover:bg-neutral-200 font-oswald text-xs sm:text-sm font-bold uppercase tracking-wider rounded-full hover:scale-[1.03] active:scale-[0.98] transition-all"
                 >
-                  Sign Up
+                  Register
                 </Button>
               </Link>
             </div>
           )}
 
-          {/* Mobile hamburger */}
+          {/* Mobile Hamburger Toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="md:hidden p-2 text-neutral-700 hover:text-neutral-900 rounded-full hover:bg-neutral-100 transition-colors"
@@ -268,75 +406,144 @@ export default function Navbar() {
       {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="md:hidden mt-2 bg-white border border-neutral-200 rounded-3xl p-5 shadow-2xl text-neutral-900 space-y-3 animate-in fade-in slide-in-from-top-2">
-          <Link
-            href="/"
-            onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold hover:text-brand px-2 py-1"
-          >
-            Home
-          </Link>
-          <Link
-            href="/browse"
-            onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold hover:text-brand px-2 py-1"
-          >
-            Browse Catalog
-          </Link>
-          <Link
-            href="/list-tool"
-            onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold text-brand hover:text-brand-hover px-2 py-1"
-          >
-            + List a Tool for Rent
-          </Link>
-          {user && (
+          {user && isOwner ? (
+            /* Owner Mobile Menu */
             <>
+              <div className="px-2 pb-2 border-b border-neutral-100 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-sm text-neutral-900">{user.name}</p>
+                  <p className="text-xs text-neutral-500">{user.email}</p>
+                </div>
+                <Badge className="bg-brand text-white text-[10px]">Owner</Badge>
+              </div>
               <Link
-                href={user.isOwner ? "/owner-dashboard" : "/bookings"}
+                href="/owner/dashboard"
                 onClick={() => setMobileOpen(false)}
-                className="block text-sm font-semibold hover:text-brand px-2 py-1"
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
               >
-                {user.isOwner ? "Owner Dashboard" : "My Bookings & QR"}
+                Dashboard
+              </Link>
+              <Link
+                href="/owner/tools"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
+              >
+                My Tools
+              </Link>
+              <Link
+                href="/owner/tools/new"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold text-brand hover:text-brand-hover px-2 py-1.5"
+              >
+                + Add New Tool
+              </Link>
+              <Link
+                href="/owner/bookings"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
+              >
+                Incoming Bookings
               </Link>
               <Link
                 href="/profile"
                 onClick={() => setMobileOpen(false)}
-                className="block text-sm font-semibold hover:text-brand px-2 py-1"
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
               >
-                My Profile
+                Profile
               </Link>
               <Link
                 href="/notifications"
                 onClick={() => setMobileOpen(false)}
-                className="block text-sm font-semibold hover:text-brand px-2 py-1"
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
               >
                 Notifications
               </Link>
             </>
+          ) : user && isBorrower ? (
+            /* Borrower Mobile Menu */
+            <>
+              <div className="px-2 pb-2 border-b border-neutral-100 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-sm text-neutral-900">{user.name}</p>
+                  <p className="text-xs text-neutral-500">{user.email}</p>
+                </div>
+                <Badge className="bg-emerald-600 text-white text-[10px]">Borrower</Badge>
+              </div>
+              <Link
+                href="/borrower/dashboard"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-emerald-600 px-2 py-1.5"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/borrower/explore"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-emerald-600 px-2 py-1.5"
+              >
+                Explore Tools
+              </Link>
+              <Link
+                href="/borrower/bookings"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-emerald-600 px-2 py-1.5"
+              >
+                My Rentals
+              </Link>
+              <Link
+                href="/borrower/explore?wishlist=true"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-emerald-600 px-2 py-1.5"
+              >
+                Wishlist
+              </Link>
+              <Link
+                href="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-emerald-600 px-2 py-1.5"
+              >
+                Profile
+              </Link>
+            </>
+          ) : (
+            /* Public Mobile Menu */
+            <>
+              <Link
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
+              >
+                Home
+              </Link>
+              <Link
+                href="/browse"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
+              >
+                Explore Tools
+              </Link>
+              <Link
+                href="/#how-it-works"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
+              >
+                How it Works
+              </Link>
+              <Link
+                href="/help"
+                onClick={() => setMobileOpen(false)}
+                className="block text-sm font-semibold hover:text-brand px-2 py-1.5"
+              >
+                Help & FAQs
+              </Link>
+            </>
           )}
-          <Link
-            href="/help"
-            onClick={() => setMobileOpen(false)}
-            className="block text-sm font-semibold hover:text-brand px-2 py-1"
-          >
-            Help & FAQs
-          </Link>
-          <Link
-            href="/terms"
-            onClick={() => setMobileOpen(false)}
-            className="block text-xs text-muted-foreground hover:text-foreground px-2 py-1"
-          >
-            Terms of Rental
-          </Link>
 
           {user ? (
             <div className="pt-3 border-t border-neutral-100 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+              <span className="text-xs text-neutral-500 truncate">{user.email}</span>
               <button
-                onClick={() => {
-                  logout();
-                  setMobileOpen(false);
-                }}
+                onClick={handleLogout}
                 className="text-xs font-bold text-red-600 hover:underline"
               >
                 Sign Out
@@ -351,7 +558,7 @@ export default function Navbar() {
               </Link>
               <Link href="/register" onClick={() => setMobileOpen(false)} className="flex-1">
                 <Button variant="outline" size="sm" className="w-full border-neutral-300 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-bold">
-                  Sign Up
+                  Register
                 </Button>
               </Link>
             </div>

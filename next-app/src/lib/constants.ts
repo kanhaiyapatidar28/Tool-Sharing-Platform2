@@ -10,10 +10,14 @@ export interface ToolItem {
   images: string[];
   city: string;
   address: string;
+  pickupArea?: string;
   specs: Record<string, string>;
   ownerName: string;
+  ownerId?: string;
   ownerEmail?: string;
   isAvailable: boolean;
+  isPublished?: boolean;
+  publicId?: string;
   rating: number;
   reviewsCount: number;
   featured?: boolean;
@@ -62,6 +66,7 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/drill machine.png", "/assets/Rotary hammer drill.png"],
     city: "Mumbai",
     address: "Bandra West, Mumbai",
+    pickupArea: "Bandra West",
     specs: {
       "Power Source": "18V Lithium-Ion",
       "Chuck Size": "13mm Keyless",
@@ -69,8 +74,11 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Weight": "1.8 kg"
     },
     ownerName: "John Owner",
-    ownerEmail: "john@example.com",
+    ownerEmail: "owner@toolshare.in",
+    ownerId: "usr-owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-1",
     rating: 4.9,
     reviewsCount: 24,
     featured: true,
@@ -87,6 +95,7 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Circular Saw.png"],
     city: "Mumbai",
     address: "Andheri East, Mumbai",
+    pickupArea: "Andheri East",
     specs: {
       "Blade Diameter": "184 mm",
       "No-load speed": "5500 RPM",
@@ -94,8 +103,11 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Power Output": "1800W"
     },
     ownerName: "Alice Owner",
-    ownerEmail: "alice@example.com",
+    ownerEmail: "alice_owner@example.com",
+    ownerId: "usr-alice_owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-2",
     rating: 5.0,
     reviewsCount: 19,
     featured: true,
@@ -112,14 +124,18 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Angle Grinder.png"],
     city: "Pune",
     address: "Kothrud, Pune",
+    pickupArea: "Kothrud",
     specs: {
       "Wheel Diameter": "100 mm",
       "Power": "840 Watts",
       "Cord Length": "2.5 m"
     },
     ownerName: "John Owner",
-    ownerEmail: "john@example.com",
+    ownerEmail: "owner@toolshare.in",
+    ownerId: "usr-owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-3",
     rating: 4.8,
     reviewsCount: 15,
     featured: true,
@@ -136,14 +152,18 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Pressure washer.png"],
     city: "Mumbai",
     address: "Juhu, Mumbai",
+    pickupArea: "Juhu",
     specs: {
       "Pressure": "145 Bar",
       "Flow Rate": "500 L/h",
       "Hose Length": "8 meters"
     },
     ownerName: "Alice Owner",
-    ownerEmail: "alice@example.com",
+    ownerEmail: "alice_owner@example.com",
+    ownerId: "usr-alice_owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-4",
     rating: 4.7,
     reviewsCount: 31,
     featured: true,
@@ -160,14 +180,18 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/chainsaw.png"],
     city: "Bangalore",
     address: "Indiranagar, Bangalore",
+    pickupArea: "Indiranagar",
     specs: {
       "Bar Length": "40 cm / 16 inch",
       "Displacement": "38.2 cc",
       "Weight": "4.6 kg"
     },
     ownerName: "John Owner",
-    ownerEmail: "john@example.com",
+    ownerEmail: "owner@toolshare.in",
+    ownerId: "usr-owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-5",
     rating: 4.9,
     reviewsCount: 12,
     featured: false,
@@ -184,14 +208,18 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Tool box.png", "/assets/hammer.png"],
     city: "Mumbai",
     address: "Powai, Mumbai",
+    pickupArea: "Powai",
     specs: {
       "Piece Count": "140 pcs",
       "Material": "Chrome Vanadium",
       "Case": "Reinforced Steel"
     },
     ownerName: "Alice Owner",
-    ownerEmail: "alice@example.com",
+    ownerEmail: "alice_owner@example.com",
+    ownerId: "usr-alice_owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-6",
     rating: 4.9,
     reviewsCount: 42,
     featured: true,
@@ -208,14 +236,18 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Orbital Sander.png", "/assets/wood sander.png"],
     city: "Delhi",
     address: "Hauz Khas, Delhi",
+    pickupArea: "Hauz Khas",
     specs: {
       "Pad Size": "125 mm",
       "Orbit Diameter": "2.5 mm",
       "Power": "250W"
     },
     ownerName: "John Owner",
-    ownerEmail: "john@example.com",
+    ownerEmail: "owner@toolshare.in",
+    ownerId: "usr-owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-7",
     rating: 4.8,
     reviewsCount: 16,
     featured: false,
@@ -232,14 +264,18 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/step ladder.png"],
     city: "Mumbai",
     address: "Thane West, Mumbai",
+    pickupArea: "Thane West",
     specs: {
       "Max Height": "3.8 meters",
       "Folded Height": "85 cm",
       "Load Capacity": "150 kg"
     },
     ownerName: "Alice Owner",
-    ownerEmail: "alice@example.com",
+    ownerEmail: "alice_owner@example.com",
+    ownerId: "usr-alice_owner",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-8",
     rating: 5.0,
     reviewsCount: 28,
     featured: false,

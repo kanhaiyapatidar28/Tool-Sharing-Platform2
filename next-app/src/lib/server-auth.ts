@@ -160,3 +160,53 @@ export function buildLogoutCookieHeader(): string {
   const isProduction = process.env.NODE_ENV === "production";
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isProduction ? "; Secure" : ""}`;
 }
+
+/**
+ * Generate a cryptographically secure random public identifier for QR code scanning
+ */
+export function generatePublicToolId(): string {
+  return `tool_${crypto.randomBytes(6).toString("hex")}`;
+}
+
+/**
+ * Authorization guard: requires a valid authenticated session
+ */
+export async function requireAuth(request?: Request): Promise<{ session: SessionPayload } | { errorResponse: Response }> {
+  const session = await getServerSession(request);
+  if (!session) {
+    return {
+      errorResponse: new Response(
+        JSON.stringify({ success: false, error: "Authentication required. Please sign in to continue." }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      ),
+    };
+  }
+  return { session };
+}
+
+/**
+ * Authorization guard: requires a specific role (or admin)
+ */
+export async function requireRole(
+  expectedRole: "owner" | "borrower" | "admin",
+  request?: Request
+): Promise<{ session: SessionPayload } | { errorResponse: Response }> {
+  const authResult = await requireAuth(request);
+  if ("errorResponse" in authResult) {
+    return authResult;
+  }
+  const { session } = authResult;
+  if (session.role !== expectedRole && session.role !== "admin") {
+    return {
+      errorResponse: new Response(
+        JSON.stringify({
+          success: false,
+          error: `Forbidden. This operation requires '${expectedRole}' permissions. Your current role is '${session.role}'.`,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      ),
+    };
+  }
+  return { session };
+}
+

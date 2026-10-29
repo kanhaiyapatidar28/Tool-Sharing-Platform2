@@ -63,7 +63,7 @@ function BrowseContent() {
 
   // Filter & sort logic
   const filteredTools = useMemo(() => {
-    let list = [...tools];
+    let list = [...tools].filter((t) => t.isPublished !== false);
 
     if (selectedCategory !== "ALL") {
       list = list.filter((t) => t.category === selectedCategory);

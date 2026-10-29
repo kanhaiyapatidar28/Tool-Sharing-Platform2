@@ -160,12 +160,13 @@ export function useAuth() {
           };
           setStoredUser(synced);
           setUser(synced);
-        } else if (!cached) {
+        } else {
+          setStoredUser(null);
           setUser(null);
         }
       })
       .catch(() => {
-        // Network or offline fallback: keep cached user
+        // Network offline fallback: keep cached user only if offline
       })
       .finally(() => {
         setLoading(false);

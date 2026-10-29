@@ -89,7 +89,7 @@ const DEMO_ACCOUNTS: Array<{
 
 export async function POST(request: Request) {
   try {
-    const { emailOrUsername, password } = await request.json();
+    const { emailOrUsername, password, selectedRole, role } = await request.json();
 
     const normalizedInput = (emailOrUsername || "").toLowerCase().trim();
     if (!normalizedInput || !password) {
@@ -167,6 +167,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // Role verification: ensure selected role matches registered user role
+    const chosenRole = (selectedRole || role || "").toLowerCase().trim();
+    if (chosenRole && chosenRole !== "admin") {
+      if (authenticatedUser.role !== chosenRole && authenticatedUser.role !== "admin") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Role mismatch. Your account is registered as '${authenticatedUser.role.toUpperCase()}', but '${chosenRole.toUpperCase()}' was selected. Please switch your selected role to '${authenticatedUser.role.toUpperCase()}'.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Determine authoritative redirect path based on verified server role
+    const redirectUrl =
+      authenticatedUser.role === "owner" ? "/owner/dashboard" : "/borrower/dashboard";
+
     // 3. Issue signed cryptographic session token
     const token = createSessionToken(authenticatedUser);
     const cookieHeader = buildSessionCookieHeader(token);
@@ -175,6 +193,7 @@ export async function POST(request: Request) {
       JSON.stringify({
         success: true,
         user: authenticatedUser,
+        redirectUrl,
         token,
       }),
       {

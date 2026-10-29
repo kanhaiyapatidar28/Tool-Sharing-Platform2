@@ -133,39 +133,26 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Quick Role Toggle */}
-        <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-border/60 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Current Active Role
+        {/* Verified Account Role */}
+        <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-border/60 flex items-center justify-between">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+              Registered Role
             </span>
-            <span className="text-[11px] text-muted-foreground">Switch anytime to access tools or list gear</span>
+            <div className="flex items-center gap-2">
+              <Badge variant={user.role === "owner" ? "default" : "info"} className="text-xs font-bold uppercase">
+                {user.role === "owner" ? "Tool Owner (Host)" : "Borrower (Renter)"}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                — Verified & secured by ToolShare auth
+              </span>
+            </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => switchRole("owner")}
-              className={`p-3 rounded-xl border text-xs font-oswald uppercase tracking-wider font-bold transition-all flex items-center justify-center gap-2 ${
-                user.isOwner
-                  ? "bg-brand text-white border-brand shadow-sm"
-                  : "bg-card border-border text-foreground hover:border-brand/40"
-              }`}
-            >
-              <Wrench className="w-4 h-4" /> Tool Owner
-            </button>
-            <button
-              type="button"
-              onClick={() => switchRole("borrower")}
-              className={`p-3 rounded-xl border text-xs font-oswald uppercase tracking-wider font-bold transition-all flex items-center justify-center gap-2 ${
-                !user.isOwner
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                  : "bg-card border-border text-foreground hover:border-emerald-500/40"
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4" /> Borrower
-            </button>
-          </div>
+          <Link href={user.role === "owner" ? "/owner/dashboard" : "/borrower/dashboard"}>
+            <Button size="sm" variant="outline" className="text-xs font-bold rounded-xl">
+              Go to Dashboard
+            </Button>
+          </Link>
         </div>
 
         {/* Contact Edit Form */}
@@ -226,27 +213,53 @@ export default function ProfilePage() {
 
         {/* Navigation Quick Links */}
         <div className="pt-4 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Link
-            href="/bookings"
-            className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-border/60 hover:border-brand/40 transition-all flex items-center justify-between"
-          >
-            <div>
-              <h4 className="font-oswald text-sm font-bold uppercase text-foreground">My Rentals</h4>
-              <p className="text-xs text-muted-foreground">View pickup QR codes and active bookings</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-brand" />
-          </Link>
-
-          <Link
-            href="/owner-dashboard"
-            className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-border/60 hover:border-brand/40 transition-all flex items-center justify-between"
-          >
-            <div>
-              <h4 className="font-oswald text-sm font-bold uppercase text-foreground">Owner Dashboard</h4>
-              <p className="text-xs text-muted-foreground">Manage tool listings and monthly payouts</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-brand" />
-          </Link>
+          {user.role === "owner" ? (
+            <>
+              <Link
+                href="/owner/tools"
+                className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-border/60 hover:border-brand/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-oswald text-sm font-bold uppercase text-foreground">My Tool Fleet</h4>
+                  <p className="text-xs text-muted-foreground">Manage listings, edit tools & print QR tags</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-brand" />
+              </Link>
+              <Link
+                href="/owner/bookings"
+                className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-border/60 hover:border-brand/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-oswald text-sm font-bold uppercase text-foreground">Incoming Bookings</h4>
+                  <p className="text-xs text-muted-foreground">Approve rentals and manage returns</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-brand" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/borrower/bookings"
+                className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-border/60 hover:border-brand/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-oswald text-sm font-bold uppercase text-foreground">My Rentals</h4>
+                  <p className="text-xs text-muted-foreground">View pickup QR codes and active bookings</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-brand" />
+              </Link>
+              <Link
+                href="/borrower/explore"
+                className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-border/60 hover:border-brand/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-oswald text-sm font-bold uppercase text-foreground">Explore Marketplace</h4>
+                  <p className="text-xs text-muted-foreground">Browse verified tools in your city</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-brand" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -80,7 +80,7 @@ export default async function HomePage() {
                   </Button>
                 </Link>
 
-                <Link href="/list-tool">
+                <Link href="/owner/tools/new">
                   <Button
                     variant="outline"
                     size="lg"
@@ -549,7 +549,7 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <Link href="/list-tool" className="shrink-0">
+          <Link href="/owner/tools/new" className="shrink-0">
             <Button
               size="lg"
               className="h-13 sm:h-14 bg-white hover:bg-neutral-100 text-neutral-900 font-oswald uppercase tracking-wider px-8 rounded-full shadow-2xl text-base font-bold hover:scale-105 transition-all"
