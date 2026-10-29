@@ -95,7 +95,7 @@ async function seedMongoIfEmpty() {
       for (const b of INITIAL_BOOKINGS) {
         await Booking.create({
           ...b,
-          ownerEmail: b.ownerName.toLowerCase().includes("alice") ? "alice_owner@example.com" : "owner@toolshare.in",
+          ownerEmail: b.ownerEmail || (b.ownerName.toLowerCase().includes("alice") ? "alice_owner@example.com" : "john_owner@example.com"),
         });
       }
       console.log("MongoDB seeded successfully!");
@@ -618,7 +618,7 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
 
   if (isConnected) {
     try {
-      const { Booking } = await getModels();
+      const { Booking, Tool } = await getModels();
       const query: any = {};
       if (userEmail) {
         const normalized = userEmail.toLowerCase().trim();
@@ -626,11 +626,26 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
         if (normalized === "john_owner@example.com" || normalized === "owner@toolshare.in") {
           emailAliases.push("john_owner@example.com", "owner@toolshare.in");
         }
+
+        // Also fetch tools owned by this user to include bookings for those tools
+        let ownedToolTitles: string[] = [];
+        try {
+          const userTools = await Tool.find({
+            $or: [
+              { ownerEmail: { $in: emailAliases } },
+              ...(normalized.includes("john") ? [{ ownerName: { $regex: "john", $options: "i" } }] : []),
+              ...(normalized.includes("alice") ? [{ ownerName: { $regex: "alice", $options: "i" } }] : []),
+            ],
+          }).select("title");
+          ownedToolTitles = userTools.map((t: any) => t.title);
+        } catch {}
+
         query.$or = [
           { renterEmail: { $in: emailAliases } },
           { ownerEmail: { $in: emailAliases } },
           ...(normalized.includes("john") ? [{ ownerName: "John Owner" }] : []),
           ...(normalized.includes("alice") ? [{ ownerName: "Alice Owner" }] : []),
+          ...(ownedToolTitles.length > 0 ? [{ toolTitle: { $in: ownedToolTitles } }] : []),
         ];
       }
       const docs = await Booking.find(query).sort({ createdAt: -1 });
@@ -673,6 +688,17 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
       normalized === "alice_owner@example.com" ||
       normalized.includes("alice");
 
+    // Also get titles and IDs of tools owned by this user from memory
+    const userOwnedTools = memoryStore.tools.filter((t) => {
+      const te = (t.ownerEmail || "").toLowerCase();
+      if (te === normalized) return true;
+      if (isJohn && (te === "owner@toolshare.in" || te === "john_owner@example.com" || (t.ownerName || "").toLowerCase().includes("john"))) return true;
+      if (isAlice && (te === "alice_owner@example.com" || (t.ownerName || "").toLowerCase().includes("alice"))) return true;
+      return false;
+    });
+    const ownedToolTitles = userOwnedTools.map((t) => (t.title || "").toLowerCase());
+    const ownedToolIds = userOwnedTools.map((t) => t.id || t._id || t.publicId);
+
     return memoryStore.bookings.filter((b) => {
       const rEmail = (b.renterEmail || "").toLowerCase().trim();
       const oEmail = ((b as any).ownerEmail || "").toLowerCase().trim();
@@ -691,6 +717,12 @@ export async function getBookings(userEmail?: string): Promise<BookingItem[]> {
       if (
         isAlice &&
         (oEmail === "alice_owner@example.com" || oName.includes("alice"))
+      ) {
+        return true;
+      }
+      if (
+        ownedToolTitles.includes((b.toolTitle || "").toLowerCase()) ||
+        ownedToolIds.includes(b.toolId)
       ) {
         return true;
       }
@@ -723,7 +755,13 @@ export async function createBooking(data: {
     throw new Error("TOOL_NOT_AVAILABLE_FOR_RENTAL");
   }
 
-  const ownerEmail = tool.ownerEmail || (tool.ownerName.toLowerCase().includes("alice") ? "alice_owner@example.com" : "owner@toolshare.in");
+  const ownerEmail =
+    tool.ownerEmail ||
+    (tool.ownerName.toLowerCase().includes("alice")
+      ? "alice_owner@example.com"
+      : tool.ownerName.toLowerCase().includes("john")
+      ? "john_owner@example.com"
+      : "owner@toolshare.in");
   const renterEmail = data.renterEmail.toLowerCase().trim();
   if (renterEmail === ownerEmail.toLowerCase().trim()) {
     throw new Error("CANNOT_RENT_OWN_TOOL");
@@ -775,7 +813,7 @@ export async function createBooking(data: {
       if (data.idempotencyKey) {
         const existing = await Booking.findOne({ idempotencyKey: data.idempotencyKey });
         if (existing) {
-          return {
+          const mappedExisting: BookingItem = {
             id: existing._id.toString(),
             _id: existing._id.toString(),
             toolId: existing.tool?.toString() || existing.toolTitle,
@@ -797,6 +835,13 @@ export async function createBooking(data: {
             messages: formatMessages(existing.messages),
             createdAt: existing.createdAt?.toISOString(),
           };
+          const memIdx = memoryStore.bookings.findIndex((b) => b.id === mappedExisting.id || b._id === mappedExisting.id);
+          if (memIdx !== -1) {
+            memoryStore.bookings[memIdx] = mappedExisting;
+          } else {
+            memoryStore.bookings.unshift(mappedExisting);
+          }
+          return mappedExisting;
         }
       }
 
@@ -825,14 +870,14 @@ export async function createBooking(data: {
         ratePerDay,
         deposit,
         totalPrice,
-        status: "CONFIRMED",
+        status: "PENDING",
         initialMsg: data.initialMsg || "Requesting tool rental for DIY project.",
         isSigned: true,
         idempotencyKey: data.idempotencyKey,
         messages: initialMessages,
       });
 
-      return {
+      const createdBooking: BookingItem = {
         id: doc._id.toString(),
         _id: doc._id.toString(),
         toolId: tool.id || doc._id.toString(),
@@ -854,6 +899,9 @@ export async function createBooking(data: {
         messages: formatMessages(doc.messages),
         createdAt: doc.createdAt?.toISOString(),
       };
+
+      memoryStore.bookings.unshift(createdBooking);
+      return createdBooking;
     } catch (e: any) {
       console.warn("MongoDB createBooking failed:", e.message);
     }
@@ -875,7 +923,7 @@ export async function createBooking(data: {
     ratePerDay,
     deposit,
     totalPrice,
-    status: "CONFIRMED",
+    status: "PENDING",
     initialMsg: data.initialMsg || "",
     isSigned: true,
     messages: data.initialMsg
@@ -893,6 +941,53 @@ export async function createBooking(data: {
 
   memoryStore.bookings.unshift(newBooking);
   return newBooking;
+}
+
+export async function getBookingById(id: string): Promise<BookingItem | null> {
+  const { isConnected } = await connectToDatabase();
+
+  if (isConnected) {
+    try {
+      const { Booking } = await getModels();
+      let doc: any = null;
+      if (id.match(/^[0-9a-fA-F]{24}$/)) {
+        doc = await Booking.findById(id);
+      }
+      if (!doc) {
+        doc = await Booking.findOne({ $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }] });
+      }
+      if (doc) {
+        return {
+          id: doc._id.toString(),
+          _id: doc._id.toString(),
+          toolId: doc.tool?.toString() || doc.toolTitle,
+          toolTitle: doc.toolTitle,
+          toolPhoto: doc.toolPhoto,
+          renterName: doc.renterName,
+          renterEmail: doc.renterEmail,
+          ownerName: doc.ownerName,
+          ownerEmail: doc.ownerEmail,
+          startDate: doc.startDate,
+          endDate: doc.endDate,
+          totalDays: doc.totalDays,
+          ratePerDay: doc.ratePerDay,
+          deposit: doc.deposit,
+          totalPrice: doc.totalPrice,
+          status: doc.status,
+          initialMsg: doc.initialMsg,
+          isSigned: doc.isSigned,
+          actualStartTime: doc.actualStartTime?.toISOString(),
+          messages: formatMessages(doc.messages),
+          createdAt: doc.createdAt?.toISOString(),
+        };
+      }
+    } catch (e) {
+      console.warn("MongoDB getBookingById failed:", e);
+    }
+  }
+
+  const found = memoryStore.bookings.find((b) => b.id === id || b._id === id);
+  return found || null;
 }
 
 /**
@@ -913,16 +1008,22 @@ export async function updateBookingStatus(
 
   if (isConnected) {
     try {
+      const { Booking } = await getModels();
+      let booking: any = null;
       if (id.match(/^[0-9a-fA-F]{24}$/)) {
-        const { Booking } = await getModels();
-        const booking = await Booking.findById(id);
-        if (!booking) return { success: false, error: "Booking not found" };
+        booking = await Booking.findById(id);
+      }
+      if (!booking) {
+        booking = await Booking.findOne({ $or: [{ id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : undefined }] });
+      }
 
+      if (booking) {
         // Verify authorization if caller details passed
         if (callerEmail && callerRole !== "admin") {
           const isRenter = booking.renterEmail.toLowerCase() === callerEmail.toLowerCase();
           const isOwner = (booking.ownerEmail || "").toLowerCase() === callerEmail.toLowerCase();
-          if (!isRenter && !isOwner) {
+          const isJohn = callerEmail.toLowerCase().includes("john") && ((booking.ownerEmail || "").toLowerCase().includes("john") || booking.ownerEmail === "owner@toolshare.in" || (booking.ownerName || "").toLowerCase().includes("john"));
+          if (!isRenter && !isOwner && !isJohn) {
             return { success: false, error: "Unauthorized to update this booking" };
           }
         }
@@ -932,6 +1033,11 @@ export async function updateBookingStatus(
           booking.actualStartTime = new Date();
         }
         await booking.save();
+
+        const memB = memoryStore.bookings.find((item) => item.id === id || item._id === id);
+        if (memB) {
+          memB.status = newStatus;
+        }
         return { success: true };
       }
     } catch (e: any) {
@@ -983,16 +1089,30 @@ export async function addBookingMessage(
   const { isConnected } = await connectToDatabase();
   if (isConnected) {
     try {
+      const { Booking } = await getModels();
+      let doc: any = null;
       if (bookingId.match(/^[0-9a-fA-F]{24}$/)) {
-        const { Booking } = await getModels();
-        const doc = await Booking.findByIdAndUpdate(
+        doc = await Booking.findByIdAndUpdate(
           bookingId,
           { $push: { messages: newMsg } },
           { new: true }
         );
-        if (doc) {
-          return { success: true, message: newMsg, messages: doc.messages };
+      }
+      if (!doc) {
+        doc = await Booking.findOneAndUpdate(
+          { $or: [{ id: bookingId }, { _id: bookingId.match(/^[0-9a-fA-F]{24}$/) ? bookingId : undefined }] },
+          { $push: { messages: newMsg } },
+          { new: true }
+        );
+      }
+      if (doc) {
+        // Also update memoryStore
+        const memB = memoryStore.bookings.find((b) => b.id === bookingId || b._id === bookingId);
+        if (memB) {
+          if (!memB.messages) memB.messages = [];
+          memB.messages.push(newMsg as any);
         }
+        return { success: true, message: newMsg, messages: formatMessages(doc.messages) };
       }
     } catch (e) {
       console.warn("MongoDB addBookingMessage failed:", e);
@@ -1010,3 +1130,4 @@ export async function addBookingMessage(
 
   return { success: false };
 }
+

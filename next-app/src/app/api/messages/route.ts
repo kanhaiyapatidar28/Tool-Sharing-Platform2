@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addBookingMessage, getBookings } from "@/lib/data-store";
+import { addBookingMessage, getBookings, getBookingById } from "@/lib/data-store";
 import { getServerSession } from "@/lib/server-auth";
 
 export async function GET(request: Request) {
@@ -9,8 +9,27 @@ export async function GET(request: Request) {
     const bookingId = searchParams.get("bookingId");
     const userEmail = (session?.email || searchParams.get("userEmail") || "").toLowerCase().trim();
 
+    if (bookingId) {
+      const b = await getBookingById(bookingId);
+      if (b) {
+        return NextResponse.json({
+          success: true,
+          messages: b.messages || [],
+          booking: {
+            id: b.id,
+            toolTitle: b.toolTitle,
+            toolPhoto: b.toolPhoto,
+            ownerName: b.ownerName,
+            ownerEmail: b.ownerEmail,
+            renterName: b.renterName,
+            renterEmail: b.renterEmail,
+          },
+        });
+      }
+    }
+
     if (!userEmail) {
-      return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "Authentication or userEmail required" }, { status: 401 });
     }
 
     const bookings = await getBookings(userEmail);
@@ -29,7 +48,9 @@ export async function GET(request: Request) {
         booking: {
           id: b.id,
           toolTitle: b.toolTitle,
+          toolPhoto: b.toolPhoto,
           ownerName: b.ownerName,
+          ownerEmail: b.ownerEmail,
           renterName: b.renterName,
           renterEmail: b.renterEmail,
         },

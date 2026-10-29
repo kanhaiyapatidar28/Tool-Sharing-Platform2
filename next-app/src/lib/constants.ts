@@ -451,5 +451,34 @@ export const INITIAL_BOOKINGS: BookingItem[] = [
     isSigned: true,
     messages: [],
     createdAt: "2026-10-25T11:00:00Z"
+  },
+  {
+    id: "b-3",
+    toolId: "tool-2",
+    toolTitle: "Makita Cordless Circular Saw (165mm)",
+    toolPhoto: "/assets/circular-saw.png",
+    renterName: "Bob Borrower",
+    renterEmail: "bob_borrower@example.com",
+    ownerName: "John Owner",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
+    startDate: "2026-10-30",
+    endDate: "2026-11-01",
+    totalDays: 2,
+    ratePerDay: 500,
+    deposit: 2000,
+    totalPrice: 1050,
+    status: "PENDING",
+    initialMsg: "Cutting plywood sheets for my study table build. Does it include extra wood cutting blades?",
+    isSigned: true,
+    messages: [
+      {
+        senderName: "Bob Borrower",
+        senderEmail: "bob_borrower@example.com",
+        text: "Hi John, I sent an instant rent request for your circular saw. Is the rip fence included?",
+        timestamp: "2026-10-29T10:00:00Z"
+      }
+    ],
+    createdAt: "2026-10-29T09:30:00Z"
   }
 ];

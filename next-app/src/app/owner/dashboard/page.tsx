@@ -51,10 +51,48 @@ export default function OwnerDashboardPage() {
   const [chatBooking, setChatBooking] = useState<BookingItem | null>(null);
   const [handoverQrBooking, setHandoverQrBooking] = useState<BookingItem | null>(null);
 
-  const ownerEmail = user?.email;
+  const ownerEmail = user?.email || "owner@toolshare.in";
+
+  function isBookingForOwner(
+    b: BookingItem,
+    uEmail: string,
+    ownerTools: ToolItem[]
+  ): boolean {
+    const normalized = (uEmail || "").toLowerCase().trim();
+    const bEmail = (b.ownerEmail || "").toLowerCase().trim();
+    const bOwnerName = (b.ownerName || "").toLowerCase();
+
+    if (bEmail === normalized) return true;
+    if (
+      normalized.includes("john") &&
+      (bEmail.includes("john") ||
+        bEmail === "owner@toolshare.in" ||
+        bOwnerName.includes("john"))
+    ) {
+      return true;
+    }
+    if (
+      normalized.includes("alice") &&
+      (bEmail.includes("alice") || bOwnerName.includes("alice"))
+    ) {
+      return true;
+    }
+    // Match if booking is for one of this owner's tools
+    if (
+      ownerTools.some(
+        (t) =>
+          t.id === b.toolId ||
+          t._id === b.toolId ||
+          t.publicId === b.toolId ||
+          t.title.toLowerCase() === (b.toolTitle || "").toLowerCase()
+      )
+    ) {
+      return true;
+    }
+    return false;
+  }
 
   async function loadDashboardData() {
-    if (!ownerEmail) return;
     try {
       setLoading(true);
       setError(null);
@@ -69,8 +107,9 @@ export default function OwnerDashboardPage() {
       const bookingsData = await bookingsRes.json();
       const statsData = await statsRes.json();
 
+      let loadedTools: ToolItem[] = [];
       if (toolsData.success && toolsData.tools) {
-        let loadedTools: ToolItem[] = toolsData.tools;
+        loadedTools = toolsData.tools;
         if (typeof window !== "undefined") {
           try {
             const raw = localStorage.getItem("toolshare_custom_tools");
@@ -94,31 +133,33 @@ export default function OwnerDashboardPage() {
         }
         setTools(loadedTools);
       }
+
       if (bookingsData.success && bookingsData.bookings) {
-        // Robust owner filter: checks ownerEmail or known aliases
-        const incoming = bookingsData.bookings.filter((b: BookingItem) => {
-          const bEmail = (b.ownerEmail || "").toLowerCase().trim();
-          const uEmail = ownerEmail.toLowerCase().trim();
-          if (bEmail === uEmail) return true;
-          if (
-            uEmail.includes("john") &&
-            (bEmail.includes("john") ||
-              bEmail === "owner@toolshare.in" ||
-              (b.ownerName || "").toLowerCase().includes("john"))
-          ) {
-            return true;
-          }
-          if (
-            uEmail.includes("alice") &&
-            (bEmail.includes("alice") ||
-              (b.ownerName || "").toLowerCase().includes("alice"))
-          ) {
-            return true;
-          }
-          return false;
-        });
+        let incoming = bookingsData.bookings.filter((b: BookingItem) =>
+          isBookingForOwner(b, ownerEmail, loadedTools)
+        );
+
+        // Also merge local custom bookings from instant rent submissions in other tabs
+        if (typeof window !== "undefined") {
+          try {
+            const rawBookings = localStorage.getItem("toolshare_custom_bookings");
+            if (rawBookings) {
+              const customB: BookingItem[] = JSON.parse(rawBookings);
+              for (const cb of customB) {
+                if (
+                  isBookingForOwner(cb, ownerEmail, loadedTools) &&
+                  !incoming.some((b: BookingItem) => b.id === cb.id || b._id === cb._id)
+                ) {
+                  incoming = [cb, ...incoming];
+                }
+              }
+            }
+          } catch {}
+        }
+
         setBookings(incoming);
       }
+
       if (statsData.success && statsData.stats) {
         setStats(statsData.stats);
       }
@@ -148,10 +189,15 @@ export default function OwnerDashboardPage() {
       chatChannel = new BroadcastChannel("toolshare_live_chat");
       chatChannel.onmessage = (event) => {
         const data = event.data;
-        if (data && data.bookingId && data.message) {
+        if (data && (data.bookingId || data.bookingAltId) && data.message) {
           setBookings((prev) =>
             prev.map((b) => {
-              if (b.id === data.bookingId || b._id === data.bookingId) {
+              if (
+                b.id === data.bookingId ||
+                b._id === data.bookingId ||
+                b.id === data.bookingAltId ||
+                b._id === data.bookingAltId
+              ) {
                 const existing = b.messages || [];
                 const already = existing.some(
                   (m) =>
@@ -173,20 +219,8 @@ export default function OwnerDashboardPage() {
       bookingChannel.onmessage = (event) => {
         const data = event.data;
         if (data?.type === "NEW_BOOKING" && data.booking) {
-          const newB = data.booking;
-          const uEmail = (ownerEmail || "").toLowerCase();
-          const bEmail = (newB.ownerEmail || "").toLowerCase();
-          const matches =
-            bEmail === uEmail ||
-            (uEmail.includes("john") &&
-              (bEmail.includes("john") ||
-                bEmail === "owner@toolshare.in" ||
-                (newB.ownerName || "").toLowerCase().includes("john"))) ||
-            (uEmail.includes("alice") &&
-              (bEmail.includes("alice") ||
-                (newB.ownerName || "").toLowerCase().includes("alice")));
-
-          if (matches) {
+          const newB: BookingItem = data.booking;
+          if (isBookingForOwner(newB, ownerEmail, tools)) {
             setBookings((prev) => {
               const exists = prev.some(
                 (b) => b.id === newB.id || b._id === newB._id
@@ -194,6 +228,10 @@ export default function OwnerDashboardPage() {
               if (exists) return prev;
               return [newB, ...prev];
             });
+            setStats((prev) => ({
+              ...prev,
+              pendingRequests: prev.pendingRequests + 1,
+            }));
           }
         }
       };
@@ -228,6 +266,29 @@ export default function OwnerDashboardPage() {
     }
 
     const handleStorage = (e: StorageEvent) => {
+      // New booking received via localStorage storage event
+      if (e.key === "toolshare_booking_sync_event" || e.key === "toolshare_last_booking") {
+        try {
+          const parsed = JSON.parse(e.newValue || "{}");
+          const newB: BookingItem = parsed.booking || parsed;
+          if (newB && (newB.id || newB._id)) {
+            if (isBookingForOwner(newB, ownerEmail, tools)) {
+              setBookings((prev) => {
+                const exists = prev.some(
+                  (b) => b.id === newB.id || b._id === newB._id
+                );
+                if (exists) return prev;
+                return [newB, ...prev];
+              });
+              setStats((prev) => ({
+                ...prev,
+                pendingRequests: prev.pendingRequests + 1,
+              }));
+            }
+          }
+        } catch {}
+      }
+
       if (e.key === "toolshare_tool_sync_event") {
         try {
           const parsed = JSON.parse(e.newValue || "{}");
@@ -255,13 +316,18 @@ export default function OwnerDashboardPage() {
         } catch {}
       }
 
-      if (e.key?.startsWith("toolshare_chat_sync_")) {
+      if (e.key?.startsWith("toolshare_chat_sync_") || e.key === "toolshare_global_chat_sync") {
         try {
           const parsed = JSON.parse(e.newValue || "{}");
-          if (parsed && parsed.bookingId && parsed.message) {
+          if (parsed && (parsed.bookingId || parsed.bookingAltId) && parsed.message) {
             setBookings((prev) =>
               prev.map((b) => {
-                if (b.id === parsed.bookingId || b._id === parsed.bookingId) {
+                if (
+                  b.id === parsed.bookingId ||
+                  b._id === parsed.bookingId ||
+                  b.id === parsed.bookingAltId ||
+                  b._id === parsed.bookingAltId
+                ) {
                   const existing = b.messages || [];
                   const already = existing.some(
                     (m) =>
@@ -288,7 +354,7 @@ export default function OwnerDashboardPage() {
       toolChannel?.close();
       window.removeEventListener("storage", handleStorage);
     };
-  }, [ownerEmail]);
+  }, [ownerEmail, tools]);
 
   const updateBookingStatus = async (id: string, newStatus: BookingItem["status"]) => {
     try {

@@ -51,6 +51,9 @@ export default function RealTimeChatModal({
     ? "John Owner"
     : "Bob Borrower";
 
+  const bId = booking.id || booking._id;
+  const bAltId = booking._id || booking.id;
+
   // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,7 +67,8 @@ export default function RealTimeChatModal({
   useEffect(() => {
     async function fetchMessages() {
       try {
-        const res = await fetch(`/api/messages?bookingId=${booking.id}`);
+        const targetId = bId || "";
+        const res = await fetch(`/api/messages?bookingId=${encodeURIComponent(targetId)}&userEmail=${encodeURIComponent(currentEmail)}`);
         const data = await res.json();
         if (data.success && data.messages) {
           setMessages(data.messages);
@@ -74,7 +78,7 @@ export default function RealTimeChatModal({
       }
     }
     fetchMessages();
-  }, [booking.id]);
+  }, [bId, currentEmail]);
 
   // Real-time synchronization across browser tabs via BroadcastChannel & Storage Event
   useEffect(() => {
@@ -85,9 +89,15 @@ export default function RealTimeChatModal({
       channel = new BroadcastChannel("toolshare_live_chat");
       channel.onmessage = (event) => {
         const data = event.data;
-        if (data && data.bookingId === booking.id && data.message) {
+        if (
+          data &&
+          data.message &&
+          (data.bookingId === bId ||
+            data.bookingId === bAltId ||
+            data.bookingAltId === bId ||
+            data.bookingAltId === bAltId)
+        ) {
           setMessages((prev) => {
-            // Avoid duplicate message if already added
             const exists = prev.some(
               (m) =>
                 m.text === data.message.text &&
@@ -103,10 +113,22 @@ export default function RealTimeChatModal({
     }
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === `toolshare_chat_sync_${booking.id}` && e.newValue) {
+      if (
+        (e.key === `toolshare_chat_sync_${bId}` ||
+          (bAltId && e.key === `toolshare_chat_sync_${bAltId}`) ||
+          e.key === "toolshare_global_chat_sync") &&
+        e.newValue
+      ) {
         try {
           const parsed = JSON.parse(e.newValue);
-          if (parsed && parsed.message) {
+          if (
+            parsed &&
+            parsed.message &&
+            (parsed.bookingId === bId ||
+              parsed.bookingId === bAltId ||
+              parsed.bookingAltId === bId ||
+              parsed.bookingAltId === bAltId)
+          ) {
             setMessages((prev) => {
               const exists = prev.some(
                 (m) =>
@@ -129,7 +151,7 @@ export default function RealTimeChatModal({
       channel?.close();
       window.removeEventListener("storage", handleStorage);
     };
-  }, [booking.id]);
+  }, [bId, bAltId]);
 
   // Send message
   const handleSendMessage = async (customText?: string) => {
@@ -153,17 +175,32 @@ export default function RealTimeChatModal({
     try {
       if (typeof window !== "undefined") {
         const channel = new BroadcastChannel("toolshare_live_chat");
-        channel.postMessage({ bookingId: booking.id, message: newMsg });
+        channel.postMessage({
+          bookingId: bId,
+          bookingAltId: bAltId,
+          toolTitle: booking.toolTitle,
+          message: newMsg,
+        });
         channel.close();
 
         // Also update localStorage as secondary sync
-        localStorage.setItem(
-          `toolshare_chat_sync_${booking.id}`,
-          JSON.stringify({ bookingId: booking.id, message: newMsg, ts: Date.now() })
-        );
+        const payload = JSON.stringify({
+          bookingId: bId,
+          bookingAltId: bAltId,
+          toolTitle: booking.toolTitle,
+          message: newMsg,
+          ts: Date.now(),
+        });
+        if (bId) localStorage.setItem(`toolshare_chat_sync_${bId}`, payload);
+        if (bAltId && bAltId !== bId) localStorage.setItem(`toolshare_chat_sync_${bAltId}`, payload);
+        localStorage.setItem("toolshare_global_chat_sync", payload);
       }
     } catch (e) {
       console.warn("Broadcast error:", e);
+    }
+
+    if (onMessageSent && bId) {
+      onMessageSent(bId, updatedMessages);
     }
 
     // Persist to server API
@@ -172,7 +209,7 @@ export default function RealTimeChatModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bookingId: booking.id,
+          bookingId: bId,
           senderName: currentName,
           senderEmail: currentEmail,
           text: textToSend,
@@ -181,7 +218,9 @@ export default function RealTimeChatModal({
       const data = await res.json();
       if (data.success && data.messages) {
         setMessages(data.messages);
-        onMessageSent?.(booking.id, data.messages);
+        if (onMessageSent && bId) {
+          onMessageSent(bId, data.messages);
+        }
       }
     } catch (e) {
       console.error("Message send failed:", e);
@@ -211,8 +250,19 @@ export default function RealTimeChatModal({
         {/* Chat Header */}
         <div className="p-4 bg-neutral-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-brand/30 border border-brand/50 flex items-center justify-center overflow-hidden shrink-0">
-              <User className="w-5 h-5 text-brand" />
+            <div className="w-11 h-11 rounded-xl bg-neutral-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative">
+              {booking.toolPhoto ? (
+                <Image
+                  src={booking.toolPhoto}
+                  alt={booking.toolTitle}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-brand/20 flex items-center justify-center text-brand">
+                  <User className="w-5 h-5" />
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -226,9 +276,9 @@ export default function RealTimeChatModal({
                   {otherPartyRole}
                 </Badge>
               </div>
-              <p className="text-[11px] text-neutral-400 flex items-center gap-1.5 truncate max-w-[260px]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {booking.toolTitle}
+              <p className="text-[11px] text-neutral-300 font-semibold flex items-center gap-1.5 truncate max-w-[260px]">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="truncate">Equipment: {booking.toolTitle}</span>
               </p>
             </div>
           </div>
@@ -247,9 +297,9 @@ export default function RealTimeChatModal({
         <div className="bg-orange-500/10 border-b border-brand/20 px-4 py-1.5 flex items-center justify-between text-[10px] text-brand font-semibold">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            Live Peer-to-Peer Encrypted Chat
+            Real-Time Live Chat &bull; {booking.toolTitle}
           </span>
-          <span className="font-mono text-muted-foreground">ID: {booking.id}</span>
+          <span className="font-mono text-muted-foreground text-[9px]">ID: {bId}</span>
         </div>
 
         {/* Message Feed */}

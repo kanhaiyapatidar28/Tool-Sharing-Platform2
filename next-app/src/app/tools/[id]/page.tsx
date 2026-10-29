@@ -4,12 +4,13 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ToolItem, INITIAL_TOOLS } from "@/lib/constants";
+import { ToolItem, BookingItem, INITIAL_TOOLS } from "@/lib/constants";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ToolQRModal from "@/components/ToolQRModal";
+import RealTimeChatModal from "@/components/RealTimeChatModal";
 import {
   Star,
   MapPin,
@@ -28,6 +29,7 @@ import {
   Download,
   Wrench,
   Edit3,
+  MessageSquare,
 } from "lucide-react";
 
 function getConditionVariant(cond: string): "success" | "info" | "secondary" | "warning" {
@@ -68,6 +70,8 @@ export default function ToolDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState("");
+  const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   const handleStartDateChange = (val: string) => {
     setStartDate(val);
@@ -156,12 +160,30 @@ export default function ToolDetailPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setBookingSuccess(true);
+        setCreatedBooking(data.booking);
         if (typeof window !== "undefined") {
           try {
             const bc = new BroadcastChannel("toolshare_booking_sync");
             bc.postMessage({ type: "NEW_BOOKING", booking: data.booking });
             bc.close();
             localStorage.setItem("toolshare_last_booking", JSON.stringify(data.booking));
+            localStorage.setItem(
+              "toolshare_booking_sync_event",
+              JSON.stringify({
+                type: "NEW_BOOKING",
+                booking: data.booking,
+                timestamp: Date.now(),
+              })
+            );
+
+            // Also append to toolshare_custom_bookings so other tabs and owner dashboard load it immediately
+            const rawCustom = localStorage.getItem("toolshare_custom_bookings");
+            const customArr = rawCustom ? JSON.parse(rawCustom) : [];
+            const exists = customArr.some((b: any) => b.id === data.booking.id || b._id === data.booking._id);
+            if (!exists) {
+              customArr.unshift(data.booking);
+              localStorage.setItem("toolshare_custom_bookings", JSON.stringify(customArr.slice(0, 50)));
+            }
           } catch {}
         }
       } else {
@@ -533,15 +555,27 @@ export default function ToolDetailPage() {
             ) : bookingSuccess ? (
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 space-y-3 text-center">
                 <Check className="w-8 h-8 mx-auto bg-emerald-500 text-white rounded-full p-1.5" />
-                <h4 className="font-oswald text-lg font-bold uppercase">Rental Confirmed!</h4>
-                <p className="text-xs leading-relaxed">
-                  Your reservation is saved. Access your pickup QR code and chat with {tool.ownerName} in your rentals dashboard.
+                <h4 className="font-oswald text-lg font-bold uppercase">Rental Request Sent!</h4>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Your instant rental request for <strong className="text-foreground">{tool.title}</strong> has been sent to <strong className="text-foreground">{tool.ownerName}</strong> and is now visible under Incoming Bookings in their owner dashboard.
                 </p>
-                <Link href="/borrower/bookings" className="block pt-1">
-                  <Button variant="default" size="sm" className="w-full font-bold">
-                    View My Active Rentals
-                  </Button>
-                </Link>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {createdBooking && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowChatModal(true)}
+                      className="w-full font-bold bg-brand hover:bg-brand-hover text-white flex items-center justify-center gap-1.5"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> Chat with Owner
+                    </Button>
+                  )}
+                  <Link href="/borrower/bookings" className="block w-full">
+                    <Button variant="outline" size="sm" className="w-full font-bold">
+                      View My Rentals
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ) : (
               <Button
@@ -566,6 +600,15 @@ export default function ToolDetailPage() {
         <ToolQRModal
           tool={tool}
           onClose={() => setShowToolQr(false)}
+        />
+      )}
+
+      {/* Real-Time Peer-to-Peer Chat Modal */}
+      {showChatModal && createdBooking && (
+        <RealTimeChatModal
+          booking={createdBooking}
+          currentUser={user}
+          onClose={() => setShowChatModal(false)}
         />
       )}
     </div>
