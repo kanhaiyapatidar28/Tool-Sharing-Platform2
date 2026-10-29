@@ -4,6 +4,7 @@ import {
   verifyPassword,
   createSessionToken,
   buildSessionCookieHeader,
+  buildSessionCookieHeaders,
   SessionPayload,
 } from "@/lib/server-auth";
 
@@ -187,9 +188,9 @@ export async function POST(request: Request) {
 
     // 3. Issue signed cryptographic session token
     const token = createSessionToken(authenticatedUser);
-    const cookieHeader = buildSessionCookieHeader(token);
+    const cookieHeaders = buildSessionCookieHeaders(token, authenticatedUser.role);
 
-    return new NextResponse(
+    const res = new NextResponse(
       JSON.stringify({
         success: true,
         user: authenticatedUser,
@@ -200,10 +201,14 @@ export async function POST(request: Request) {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          "Set-Cookie": cookieHeader,
         },
       }
     );
+
+    for (const c of cookieHeaders) {
+      res.headers.append("Set-Cookie", c);
+    }
+    return res;
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || "An unexpected error occurred during login." },

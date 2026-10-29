@@ -14,6 +14,8 @@ export interface SessionPayload {
 
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "toolshare_p2p_secure_marketplace_secret_key_2026";
 export const SESSION_COOKIE_NAME = "toolshare_session";
+export const OWNER_SESSION_COOKIE_NAME = "toolshare_owner_session";
+export const BORROWER_SESSION_COOKIE_NAME = "toolshare_borrower_session";
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 /**
@@ -110,50 +112,125 @@ export function verifySessionToken(token: string): SessionPayload | null {
  * Retrieve server session from Request headers, cookies, or Next.js cookies()
  */
 export async function getServerSession(request?: Request): Promise<SessionPayload | null> {
-  let token: string | undefined;
-
   // 1. From Authorization Header
   if (request) {
     const authHeader = request.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
+      const s = verifySessionToken(authHeader.substring(7));
+      if (s) return s;
+    }
+
+    // Determine if request has an explicit or contextual role
+    let preferredRole: string | null = request.headers.get("x-user-role") || request.headers.get("x-toolshare-role");
+    if (!preferredRole) {
+      try {
+        const urlObj = new URL(request.url);
+        preferredRole = urlObj.searchParams.get("role");
+      } catch {}
+    }
+    if (!preferredRole) {
+      const referer = request.headers.get("referer") || "";
+      if (referer.includes("/owner")) preferredRole = "owner";
+      else if (referer.includes("/borrower")) preferredRole = "borrower";
     }
 
     // 2. From Cookie header on Request
-    if (!token) {
-      const cookieHeader = request.headers.get("cookie");
-      if (cookieHeader) {
-        const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`));
-        if (match) {
-          token = decodeURIComponent(match[1]);
+    const cookieHeader = request.headers.get("cookie");
+    if (cookieHeader) {
+      if (preferredRole === "owner") {
+        const ownerMatch = cookieHeader.match(new RegExp(`(?:^|;\\s*)${OWNER_SESSION_COOKIE_NAME}=([^;]+)`));
+        if (ownerMatch) {
+          const ownerSession = verifySessionToken(decodeURIComponent(ownerMatch[1]));
+          if (ownerSession) return ownerSession;
         }
+      } else if (preferredRole === "borrower") {
+        const borrowerMatch = cookieHeader.match(new RegExp(`(?:^|;\\s*)${BORROWER_SESSION_COOKIE_NAME}=([^;]+)`));
+        if (borrowerMatch) {
+          const borrowerSession = verifySessionToken(decodeURIComponent(borrowerMatch[1]));
+          if (borrowerSession) return borrowerSession;
+        }
+      }
+
+      // Check standard session cookie
+      const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`));
+      if (match) {
+        const s = verifySessionToken(decodeURIComponent(match[1]));
+        if (s) return s;
+      }
+
+      // Check owner/borrower cookie fallbacks
+      const oMatch = cookieHeader.match(new RegExp(`(?:^|;\\s*)${OWNER_SESSION_COOKIE_NAME}=([^;]+)`));
+      if (oMatch) {
+        const oSession = verifySessionToken(decodeURIComponent(oMatch[1]));
+        if (oSession) return oSession;
+      }
+      const bMatch = cookieHeader.match(new RegExp(`(?:^|;\\s*)${BORROWER_SESSION_COOKIE_NAME}=([^;]+)`));
+      if (bMatch) {
+        const bSession = verifySessionToken(decodeURIComponent(bMatch[1]));
+        if (bSession) return bSession;
       }
     }
   }
 
   // 3. From Next.js cookies() helper (for Server Components & Server Actions)
-  if (!token) {
-    try {
-      const cookieStore = await cookies();
-      const cookie = cookieStore.get(SESSION_COOKIE_NAME);
-      if (cookie) {
-        token = cookie.value;
-      }
-    } catch {
-      // Outside of request scope or static generation
+  try {
+    const cookieStore = await cookies();
+    const cookie =
+      cookieStore.get(SESSION_COOKIE_NAME) ||
+      cookieStore.get(OWNER_SESSION_COOKIE_NAME) ||
+      cookieStore.get(BORROWER_SESSION_COOKIE_NAME);
+    if (cookie) {
+      const s = verifySessionToken(cookie.value);
+      if (s) return s;
     }
+  } catch {
+    // Outside of request scope or static generation
   }
 
-  if (!token) return null;
-  return verifySessionToken(token);
+  return null;
 }
 
 /**
- * Construct Set-Cookie value
+ * Construct Set-Cookie values for role-scoped session
  */
+export function buildSessionCookieHeaders(token: string, role?: string): string[] {
+  const isProduction = process.env.NODE_ENV === "production";
+  const flags = `; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${isProduction ? "; Secure" : ""}`;
+  const headers = [
+    `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}${flags}`,
+  ];
+  if (role === "owner") {
+    headers.push(`${OWNER_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}${flags}`);
+  } else if (role === "borrower") {
+    headers.push(`${BORROWER_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}${flags}`);
+  }
+  return headers;
+}
+
 export function buildSessionCookieHeader(token: string): string {
   const isProduction = process.env.NODE_ENV === "production";
   return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SECONDS}${isProduction ? "; Secure" : ""}`;
+}
+
+export function buildLogoutCookieHeaders(role?: string): string[] {
+  const isProduction = process.env.NODE_ENV === "production";
+  const clearFlags = `; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isProduction ? "; Secure" : ""}`;
+
+  if (role === "owner") {
+    return [
+      `${OWNER_SESSION_COOKIE_NAME}=${clearFlags}`,
+    ];
+  } else if (role === "borrower") {
+    return [
+      `${BORROWER_SESSION_COOKIE_NAME}=${clearFlags}`,
+    ];
+  }
+
+  return [
+    `${SESSION_COOKIE_NAME}=${clearFlags}`,
+    `${OWNER_SESSION_COOKIE_NAME}=${clearFlags}`,
+    `${BORROWER_SESSION_COOKIE_NAME}=${clearFlags}`,
+  ];
 }
 
 export function buildLogoutCookieHeader(): string {

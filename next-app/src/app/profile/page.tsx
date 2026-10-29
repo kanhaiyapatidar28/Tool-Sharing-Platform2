@@ -96,7 +96,7 @@ export default function ProfilePage() {
           variant="outline"
           size="sm"
           onClick={() => {
-            logout();
+            logout(user?.role);
             router.push("/");
           }}
           className="text-xs font-bold text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/40 self-start sm:self-center"

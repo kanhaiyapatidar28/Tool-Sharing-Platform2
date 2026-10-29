@@ -33,7 +33,8 @@ export default function Navbar() {
   const isBorrower = user?.role === "borrower" || (!user?.isOwner && Boolean(user));
 
   const handleLogout = async () => {
-    await logout();
+    const roleToLogout = isOwner ? "owner" : "borrower";
+    await logout(roleToLogout);
     setUserDropdownOpen(false);
     setMobileOpen(false);
     router.push("/login");
@@ -42,20 +43,41 @@ export default function Navbar() {
   return (
     <header className="sticky top-4 z-50 w-full px-4 sm:px-8 max-w-7xl mx-auto">
       <div className="bg-white/95 backdrop-blur-xl border border-neutral-200/90 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 shadow-xl flex items-center justify-between transition-all">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-9 h-9 rounded-full bg-brand flex items-center justify-center text-white shadow-md shadow-brand/40 group-hover:scale-105 transition-transform">
-            <Wrench className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-oswald text-xl uppercase tracking-wider text-neutral-900 font-bold leading-none">
-              ToolShare
-            </span>
-            <span className="text-[9px] uppercase font-bold tracking-widest text-brand leading-tight">
-              India
-            </span>
-          </div>
-        </Link>
+        {/* Brand Logo & Active Role Tag */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 rounded-full bg-brand flex items-center justify-center text-white shadow-md shadow-brand/40 group-hover:scale-105 transition-transform">
+              <Wrench className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-oswald text-xl uppercase tracking-wider text-neutral-900 font-bold leading-none">
+                ToolShare
+              </span>
+              <span className="text-[9px] uppercase font-bold tracking-widest text-brand leading-tight">
+                India
+              </span>
+            </div>
+          </Link>
+
+          {/* Prominent Role Badge after login */}
+          {user && (
+            <Badge
+              variant="outline"
+              className={`hidden lg:inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full border shadow-2xs ${
+                isOwner
+                  ? "border-brand/40 text-brand bg-brand/10"
+                  : "border-emerald-600/40 text-emerald-700 bg-emerald-50"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  isOwner ? "bg-brand" : "bg-emerald-600"
+                }`}
+              />
+              {isOwner ? "Owner Portal" : "Borrower Portal"}
+            </Badge>
+          )}
+        </div>
 
         {/* Dynamic Role-Based Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-1 bg-neutral-100 border border-neutral-200/80 rounded-full px-4 py-1.5 text-xs sm:text-sm text-neutral-700 font-medium">
@@ -246,7 +268,7 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="h-10 sm:h-11 flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-3 sm:px-3.5 rounded-full text-neutral-900 text-xs font-semibold transition-all"
+                className="h-10 sm:h-11 flex items-center gap-1.5 sm:gap-2 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 px-3 sm:px-3.5 rounded-full text-neutral-900 text-xs font-semibold transition-all"
                 aria-label="User Account Menu"
               >
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-brand/30 flex items-center justify-center shrink-0">
@@ -257,8 +279,15 @@ export default function Navbar() {
                     <UserIcon className="w-3.5 h-3.5 text-brand" />
                   )}
                 </div>
-                <span className="font-oswald tracking-wide uppercase max-w-[80px] sm:max-w-[100px] truncate text-neutral-900">
+                <span className="font-oswald tracking-wide uppercase max-w-[80px] sm:max-w-[100px] truncate text-neutral-900 font-bold">
                   {user.name.split(" ")[0]}
+                </span>
+                <span
+                  className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full shrink-0 shadow-xs text-white ${
+                    isOwner ? "bg-brand" : "bg-emerald-600"
+                  }`}
+                >
+                  {isOwner ? "Owner" : "Borrower"}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-neutral-500" />
               </button>
