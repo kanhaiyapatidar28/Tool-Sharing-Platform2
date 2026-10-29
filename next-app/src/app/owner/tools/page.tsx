@@ -28,30 +28,113 @@ export default function OwnerToolsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedQRTool, setSelectedQRTool] = useState<ToolItem | null>(null);
 
-  useEffect(() => {
-    async function fetchTools() {
-      if (!user) return;
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetch("/api/tools?ownerOnly=true");
-        const data = await res.json();
-        if (res.ok && data.success && data.tools) {
-          setTools(data.tools);
-        } else {
-          setError(data.error || "Failed to load your tools");
+  async function fetchTools() {
+    if (!user) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/tools?ownerOnly=true", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && data.success && data.tools) {
+        let loadedTools: ToolItem[] = data.tools;
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("toolshare_custom_tools");
+            if (raw) {
+              const custom: ToolItem[] = JSON.parse(raw);
+              const matching = custom.filter((ct) => {
+                const ctEmail = (ct.ownerEmail || "").toLowerCase();
+                const uEmail = user.email.toLowerCase();
+                return (
+                  ctEmail === uEmail ||
+                  (uEmail.includes("john") && (ctEmail.includes("john") || ctEmail === "owner@toolshare.in")) ||
+                  (uEmail.includes("alice") && ctEmail.includes("alice"))
+                );
+              });
+              for (const ct of matching) {
+                if (!loadedTools.some((t) => t.id === ct.id || t._id === ct.id || t.publicId === ct.publicId)) {
+                  loadedTools = [ct, ...loadedTools];
+                }
+              }
+            }
+          } catch {}
         }
-      } catch (err: any) {
-        setError(err.message || "Network error loading tools");
-      } finally {
-        setLoading(false);
+        setTools(loadedTools);
+      } else {
+        setError(data.error || "Failed to load your tools");
       }
+    } catch (err: any) {
+      setError(err.message || "Network error loading tools");
+    } finally {
+      setLoading(false);
     }
+  }
 
+  useEffect(() => {
     if (!authLoading) {
       fetchTools();
     }
   }, [user, authLoading]);
+
+  // Real-time synchronization
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let toolChannel: BroadcastChannel | null = null;
+    try {
+      toolChannel = new BroadcastChannel("toolshare_tool_sync");
+      toolChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === "TOOL_CREATED" && data.tool) {
+          const newT: ToolItem = data.tool;
+          const uEmail = (user?.email || "").toLowerCase();
+          const tEmail = (newT.ownerEmail || "").toLowerCase();
+          const matches =
+            tEmail === uEmail ||
+            (uEmail.includes("john") && (tEmail.includes("john") || tEmail === "owner@toolshare.in")) ||
+            (uEmail.includes("alice") && tEmail.includes("alice"));
+          if (matches) {
+            setTools((prev) => {
+              const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+              if (exists) return prev;
+              return [newT, ...prev];
+            });
+          }
+        } else if (data?.type === "TOOL_DELETED" && data.toolId) {
+          setTools((prev) => prev.filter((t) => t.id !== data.toolId && t._id !== data.toolId));
+        }
+      };
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "toolshare_tool_sync_event") {
+        try {
+          const parsed = JSON.parse(e.newValue || "{}");
+          if (parsed?.type === "TOOL_CREATED" && parsed.tool) {
+            const newT: ToolItem = parsed.tool;
+            const uEmail = (user?.email || "").toLowerCase();
+            const tEmail = (newT.ownerEmail || "").toLowerCase();
+            const matches =
+              tEmail === uEmail ||
+              (uEmail.includes("john") && (tEmail.includes("john") || tEmail === "owner@toolshare.in")) ||
+              (uEmail.includes("alice") && tEmail.includes("alice"));
+            if (matches) {
+              setTools((prev) => {
+                const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+                if (exists) return prev;
+                return [newT, ...prev];
+              });
+            }
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      toolChannel?.close();
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [user]);
 
   const togglePublish = async (tool: ToolItem) => {
     const id = tool.id || tool._id!;

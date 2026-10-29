@@ -97,6 +97,26 @@ export default function NewToolListingPage() {
       const data = await res.json();
       if (res.ok && data.success && data.tool) {
         setCreatedTool(data.tool);
+        // Persist and broadcast in real-time to owner dashboard, borrower dashboard and explore catalog
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("toolshare_custom_tools");
+            const existing = raw ? JSON.parse(raw) : [];
+            const filtered = existing.filter((t: any) => t.id !== data.tool.id && t._id !== data.tool.id);
+            localStorage.setItem("toolshare_custom_tools", JSON.stringify([data.tool, ...filtered]));
+
+            const ch = new BroadcastChannel("toolshare_tool_sync");
+            ch.postMessage({ type: "TOOL_CREATED", tool: data.tool });
+            ch.close();
+
+            localStorage.setItem(
+              "toolshare_tool_sync_event",
+              JSON.stringify({ type: "TOOL_CREATED", tool: data.tool, timestamp: Date.now() })
+            );
+          } catch (e) {
+            console.warn("Could not broadcast tool creation:", e);
+          }
+        }
       } else {
         setError(data.error || "Failed to publish tool listing.");
       }
@@ -369,7 +389,8 @@ export default function NewToolListingPage() {
           tool={createdTool}
           onClose={() => {
             setCreatedTool(null);
-            router.push("/owner/tools");
+            router.push("/owner/dashboard");
+            router.refresh();
           }}
         />
       )}

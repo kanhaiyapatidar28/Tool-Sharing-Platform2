@@ -41,24 +41,86 @@ function BrowseContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("ALL");
   const [maxPrice, setMaxPrice] = useState<number>(1000);
-  const [sortBy, setSortBy] = useState<"featured" | "price_asc" | "price_desc" | "rating">("featured");
+  const [sortBy, setSortBy] = useState<"newest" | "featured" | "price_asc" | "price_desc" | "rating">("newest");
+
+  async function loadTools() {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/tools", { cache: "no-store" });
+      const data = await res.json();
+      if (data.tools) {
+        let loadedTools: ToolItem[] = data.tools;
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("toolshare_custom_tools");
+            if (raw) {
+              const custom: ToolItem[] = JSON.parse(raw);
+              for (const ct of custom) {
+                if (ct.isPublished !== false && !loadedTools.some((t) => t.id === ct.id || t._id === ct.id || t.publicId === ct.publicId)) {
+                  loadedTools = [ct, ...loadedTools];
+                }
+              }
+            }
+          } catch {}
+        }
+        setTools(loadedTools);
+      }
+    } catch (err) {
+      console.error("Failed to fetch tools:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadTools() {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/tools");
-        const data = await res.json();
-        if (data.tools) {
-          setTools(data.tools);
-        }
-      } catch (err) {
-        console.error("Failed to fetch tools:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadTools();
+  }, []);
+
+  // Real-time synchronization
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let toolChannel: BroadcastChannel | null = null;
+    try {
+      toolChannel = new BroadcastChannel("toolshare_tool_sync");
+      toolChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === "TOOL_CREATED" && data.tool) {
+          const newT: ToolItem = data.tool;
+          if (newT.isPublished !== false) {
+            setTools((prev) => {
+              const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+              return exists ? prev : [newT, ...prev];
+            });
+          }
+        } else if (data?.type === "TOOL_DELETED" && data.toolId) {
+          setTools((prev) => prev.filter((t) => t.id !== data.toolId && t._id !== data.toolId));
+        }
+      };
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "toolshare_tool_sync_event") {
+        try {
+          const parsed = JSON.parse(e.newValue || "{}");
+          if (parsed?.type === "TOOL_CREATED" && parsed.tool) {
+            const newT: ToolItem = parsed.tool;
+            if (newT.isPublished !== false) {
+              setTools((prev) => {
+                const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+                return exists ? prev : [newT, ...prev];
+              });
+            }
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      toolChannel?.close();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   // Filter & sort logic
@@ -85,7 +147,9 @@ function BrowseContent() {
 
     list = list.filter((t) => t.ratePerDay <= maxPrice);
 
-    if (sortBy === "price_asc") {
+    if (sortBy === "newest") {
+      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } else if (sortBy === "price_asc") {
       list.sort((a, b) => a.ratePerDay - b.ratePerDay);
     } else if (sortBy === "price_desc") {
       list.sort((a, b) => b.ratePerDay - a.ratePerDay);
@@ -103,7 +167,7 @@ function BrowseContent() {
     setSearchQuery("");
     setSelectedCity("ALL");
     setMaxPrice(1000);
-    setSortBy("featured");
+    setSortBy("newest");
   };
 
   return (
@@ -208,6 +272,7 @@ function BrowseContent() {
               onChange={(e) => setSortBy(e.target.value as any)}
               className="bg-background border border-border rounded-xl px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-brand"
             >
+              <option value="newest">Newest Listed First (Latest)</option>
               <option value="featured">Featured First</option>
               <option value="price_asc">Price: Low to High</option>
               <option value="price_desc">Price: High to Low</option>

@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       { success: true, tools, count: tools.length },
       {
         headers: {
-          "Cache-Control": ownerOnly ? "no-store" : "public, s-maxage=5, stale-while-revalidate=30",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
         },
       }
     );

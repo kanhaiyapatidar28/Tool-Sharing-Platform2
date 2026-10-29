@@ -53,73 +53,96 @@ export default function OwnerDashboardPage() {
 
   const ownerEmail = user?.email;
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      if (!ownerEmail) return;
-      try {
-        setLoading(true);
-        setError(null);
+  async function loadDashboardData() {
+    if (!ownerEmail) return;
+    try {
+      setLoading(true);
+      setError(null);
 
-        const [toolsRes, bookingsRes, statsRes] = await Promise.all([
-          fetch("/api/tools?ownerOnly=true"),
-          fetch(`/api/bookings?userEmail=${encodeURIComponent(ownerEmail)}`),
-          fetch(`/api/owner/stats?email=${encodeURIComponent(ownerEmail)}`),
-        ]);
+      const [toolsRes, bookingsRes, statsRes] = await Promise.all([
+        fetch("/api/tools?ownerOnly=true", { cache: "no-store" }),
+        fetch(`/api/bookings?userEmail=${encodeURIComponent(ownerEmail)}`, { cache: "no-store" }),
+        fetch(`/api/owner/stats?email=${encodeURIComponent(ownerEmail)}`, { cache: "no-store" }),
+      ]);
 
-        const toolsData = await toolsRes.json();
-        const bookingsData = await bookingsRes.json();
-        const statsData = await statsRes.json();
+      const toolsData = await toolsRes.json();
+      const bookingsData = await bookingsRes.json();
+      const statsData = await statsRes.json();
 
-        if (toolsData.success && toolsData.tools) {
-          setTools(toolsData.tools);
-        }
-        if (bookingsData.success && bookingsData.bookings) {
-          // Robust owner filter: checks ownerEmail or known aliases
-          const incoming = bookingsData.bookings.filter((b: BookingItem) => {
-            const bEmail = (b.ownerEmail || "").toLowerCase().trim();
-            const uEmail = ownerEmail.toLowerCase().trim();
-            if (bEmail === uEmail) return true;
-            if (
-              uEmail.includes("john") &&
-              (bEmail.includes("john") ||
-                bEmail === "owner@toolshare.in" ||
-                (b.ownerName || "").toLowerCase().includes("john"))
-            ) {
-              return true;
+      if (toolsData.success && toolsData.tools) {
+        let loadedTools: ToolItem[] = toolsData.tools;
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("toolshare_custom_tools");
+            if (raw) {
+              const custom: ToolItem[] = JSON.parse(raw);
+              const matching = custom.filter((ct) => {
+                const ctEmail = (ct.ownerEmail || "").toLowerCase();
+                return (
+                  ctEmail === ownerEmail.toLowerCase() ||
+                  (ownerEmail.includes("john") && (ctEmail.includes("john") || ctEmail === "owner@toolshare.in")) ||
+                  (ownerEmail.includes("alice") && ctEmail.includes("alice"))
+                );
+              });
+              for (const ct of matching) {
+                if (!loadedTools.some((t) => t.id === ct.id || t._id === ct.id || t.publicId === ct.publicId)) {
+                  loadedTools = [ct, ...loadedTools];
+                }
+              }
             }
-            if (
-              uEmail.includes("alice") &&
-              (bEmail.includes("alice") ||
-                (b.ownerName || "").toLowerCase().includes("alice"))
-            ) {
-              return true;
-            }
-            return false;
-          });
-          setBookings(incoming);
+          } catch {}
         }
-        if (statsData.success && statsData.stats) {
-          setStats(statsData.stats);
-        }
-      } catch (err: any) {
-        console.error("Owner dashboard fetch failed:", err);
-        setError("Failed to load dashboard metrics. Please refresh.");
-      } finally {
-        setLoading(false);
+        setTools(loadedTools);
       }
+      if (bookingsData.success && bookingsData.bookings) {
+        // Robust owner filter: checks ownerEmail or known aliases
+        const incoming = bookingsData.bookings.filter((b: BookingItem) => {
+          const bEmail = (b.ownerEmail || "").toLowerCase().trim();
+          const uEmail = ownerEmail.toLowerCase().trim();
+          if (bEmail === uEmail) return true;
+          if (
+            uEmail.includes("john") &&
+            (bEmail.includes("john") ||
+              bEmail === "owner@toolshare.in" ||
+              (b.ownerName || "").toLowerCase().includes("john"))
+          ) {
+            return true;
+          }
+          if (
+            uEmail.includes("alice") &&
+            (bEmail.includes("alice") ||
+              (b.ownerName || "").toLowerCase().includes("alice"))
+          ) {
+            return true;
+          }
+          return false;
+        });
+        setBookings(incoming);
+      }
+      if (statsData.success && statsData.stats) {
+        setStats(statsData.stats);
+      }
+    } catch (err: any) {
+      console.error("Owner dashboard fetch failed:", err);
+      setError("Failed to load dashboard metrics. Please refresh.");
+    } finally {
+      setLoading(false);
     }
+  }
 
+  useEffect(() => {
     if (!authLoading) {
       loadDashboardData();
     }
   }, [ownerEmail, authLoading]);
 
-  // Real-time synchronization across browser tabs (messages, new bookings, status updates)
+  // Real-time synchronization across browser tabs (messages, new bookings, tools, status updates)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     let chatChannel: BroadcastChannel | null = null;
     let bookingChannel: BroadcastChannel | null = null;
+    let toolChannel: BroadcastChannel | null = null;
 
     try {
       chatChannel = new BroadcastChannel("toolshare_live_chat");
@@ -174,11 +197,64 @@ export default function OwnerDashboardPage() {
           }
         }
       };
+
+      toolChannel = new BroadcastChannel("toolshare_tool_sync");
+      toolChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === "TOOL_CREATED" && data.tool) {
+          const newT: ToolItem = data.tool;
+          const uEmail = (ownerEmail || "").toLowerCase();
+          const tEmail = (newT.ownerEmail || "").toLowerCase();
+          const matches =
+            tEmail === uEmail ||
+            (uEmail.includes("john") && (tEmail.includes("john") || tEmail === "owner@toolshare.in")) ||
+            (uEmail.includes("alice") && tEmail.includes("alice"));
+
+          if (matches) {
+            setTools((prev) => {
+              const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+              if (exists) return prev;
+              return [newT, ...prev];
+            });
+            setStats((prev) => ({
+              ...prev,
+              toolsListed: prev.toolsListed + 1,
+            }));
+          }
+        }
+      };
     } catch (e) {
       console.warn("BroadcastChannel error:", e);
     }
 
     const handleStorage = (e: StorageEvent) => {
+      if (e.key === "toolshare_tool_sync_event") {
+        try {
+          const parsed = JSON.parse(e.newValue || "{}");
+          if (parsed?.type === "TOOL_CREATED" && parsed.tool) {
+            const newT: ToolItem = parsed.tool;
+            const uEmail = (ownerEmail || "").toLowerCase();
+            const tEmail = (newT.ownerEmail || "").toLowerCase();
+            const matches =
+              tEmail === uEmail ||
+              (uEmail.includes("john") && (tEmail.includes("john") || tEmail === "owner@toolshare.in")) ||
+              (uEmail.includes("alice") && tEmail.includes("alice"));
+
+            if (matches) {
+              setTools((prev) => {
+                const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+                if (exists) return prev;
+                return [newT, ...prev];
+              });
+              setStats((prev) => ({
+                ...prev,
+                toolsListed: prev.toolsListed + 1,
+              }));
+            }
+          }
+        } catch {}
+      }
+
       if (e.key?.startsWith("toolshare_chat_sync_")) {
         try {
           const parsed = JSON.parse(e.newValue || "{}");
@@ -209,6 +285,7 @@ export default function OwnerDashboardPage() {
     return () => {
       chatChannel?.close();
       bookingChannel?.close();
+      toolChannel?.close();
       window.removeEventListener("storage", handleStorage);
     };
   }, [ownerEmail]);
@@ -305,7 +382,16 @@ export default function OwnerDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadDashboardData()}
+            className="text-xs font-bold border-border"
+            title="Refresh fleet and booking data"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin text-brand" : ""}`} /> Refresh
+          </Button>
           <Link href="/owner/tools/new">
             <Button className="bg-brand hover:bg-brand-hover text-white font-oswald uppercase tracking-wider text-xs font-bold shadow-md shadow-brand/20">
               <PlusCircle className="w-4 h-4 mr-1.5" /> List New Equipment

@@ -23,11 +23,14 @@ import {
   RefreshCw,
   Wrench,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
 export default function BorrowerDashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [allTools, setAllTools] = useState<ToolItem[]>([]);
+  const [recentTools, setRecentTools] = useState<ToolItem[]>([]);
   const [featuredTools, setFeaturedTools] = useState<ToolItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,37 +38,60 @@ export default function BorrowerDashboardPage() {
   const [chatBooking, setChatBooking] = useState<BookingItem | null>(null);
   const [handoverQrBooking, setHandoverQrBooking] = useState<BookingItem | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      if (!user) return;
-      try {
-        setLoading(true);
-        const [bookingsRes, toolsRes] = await Promise.all([
-          fetch(`/api/bookings?userEmail=${encodeURIComponent(user.email)}`),
-          fetch("/api/tools"),
-        ]);
+  async function loadData() {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const [bookingsRes, toolsRes] = await Promise.all([
+        fetch(`/api/bookings?userEmail=${encodeURIComponent(user.email)}`, { cache: "no-store" }),
+        fetch("/api/tools", { cache: "no-store" }),
+      ]);
 
-        const bookingsData = await bookingsRes.json();
-        const toolsData = await toolsRes.json();
+      const bookingsData = await bookingsRes.json();
+      const toolsData = await toolsRes.json();
 
-        if (bookingsData.success && bookingsData.bookings) {
-          // Filter rentals where current user is renter
-          const myRentals = bookingsData.bookings.filter(
-            (b: BookingItem) => (b.renterEmail || "").toLowerCase() === user.email.toLowerCase()
-          );
-          setBookings(myRentals);
-        }
-
-        if (toolsData.success && toolsData.tools) {
-          setFeaturedTools(toolsData.tools.slice(0, 4));
-        }
-      } catch (err) {
-        console.error("Borrower dashboard data error:", err);
-      } finally {
-        setLoading(false);
+      if (bookingsData.success && bookingsData.bookings) {
+        // Filter rentals where current user is renter
+        const myRentals = bookingsData.bookings.filter(
+          (b: BookingItem) => (b.renterEmail || "").toLowerCase() === user.email.toLowerCase()
+        );
+        setBookings(myRentals);
       }
-    }
 
+      if (toolsData.success && toolsData.tools) {
+        let loadedTools: ToolItem[] = toolsData.tools;
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("toolshare_custom_tools");
+            if (raw) {
+              const custom: ToolItem[] = JSON.parse(raw);
+              for (const ct of custom) {
+                if (ct.isPublished !== false && !loadedTools.some((t) => t.id === ct.id || t._id === ct.id || t.publicId === ct.publicId)) {
+                  loadedTools = [ct, ...loadedTools];
+                }
+              }
+            }
+          } catch {}
+        }
+        setAllTools(loadedTools);
+
+        // Sort by creation date descending so newly listed tools are prominent
+        const byDate = [...loadedTools].sort(
+          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+        setRecentTools(byDate.slice(0, 4));
+
+        const feat = loadedTools.filter((t) => t.featured);
+        setFeaturedTools(feat.length > 0 ? feat.slice(0, 4) : byDate.slice(0, 4));
+      }
+    } catch (err) {
+      console.error("Borrower dashboard data error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     if (!authLoading) {
       loadData();
     }
@@ -77,6 +103,7 @@ export default function BorrowerDashboardPage() {
 
     let chatChannel: BroadcastChannel | null = null;
     let bookingChannel: BroadcastChannel | null = null;
+    let toolChannel: BroadcastChannel | null = null;
 
     try {
       chatChannel = new BroadcastChannel("toolshare_live_chat");
@@ -122,9 +149,42 @@ export default function BorrowerDashboardPage() {
           );
         }
       };
+
+      toolChannel = new BroadcastChannel("toolshare_tool_sync");
+      toolChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === "TOOL_CREATED" && data.tool) {
+          const newT: ToolItem = data.tool;
+          setAllTools((prev) => {
+            const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+            return exists ? prev : [newT, ...prev];
+          });
+          setRecentTools((prev) => {
+            const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+            return exists ? prev : [newT, ...prev.slice(0, 3)];
+          });
+        }
+      };
     } catch {}
 
     const handleStorage = (e: StorageEvent) => {
+      if (e.key === "toolshare_tool_sync_event") {
+        try {
+          const parsed = JSON.parse(e.newValue || "{}");
+          if (parsed?.type === "TOOL_CREATED" && parsed.tool) {
+            const newT: ToolItem = parsed.tool;
+            setAllTools((prev) => {
+              const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+              return exists ? prev : [newT, ...prev];
+            });
+            setRecentTools((prev) => {
+              const exists = prev.some((t) => t.id === newT.id || t._id === newT.id || t.publicId === newT.publicId);
+              return exists ? prev : [newT, ...prev.slice(0, 3)];
+            });
+          }
+        } catch {}
+      }
+
       if (e.key?.startsWith("toolshare_chat_sync_")) {
         try {
           const parsed = JSON.parse(e.newValue || "{}");
@@ -155,6 +215,7 @@ export default function BorrowerDashboardPage() {
     return () => {
       chatChannel?.close();
       bookingChannel?.close();
+      toolChannel?.close();
       window.removeEventListener("storage", handleStorage);
     };
   }, [user]);
@@ -376,6 +437,66 @@ export default function BorrowerDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Fresh / Newly Listed Equipment Section */}
+      {recentTools.length > 0 && (
+        <div className="space-y-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-oswald text-xl font-bold uppercase tracking-tight text-foreground flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-brand" /> Newly Listed Equipment
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Fresh gear recently added by equipment owners in your community.
+              </p>
+            </div>
+            <Link href="/borrower/explore?sort=newest" className="text-xs font-bold text-brand hover:underline flex items-center gap-1">
+              Explore All <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {recentTools.map((t) => (
+              <Link
+                key={t.id || t._id}
+                href={`/tools/${t.id || t._id}`}
+                className="bg-card border border-border rounded-2xl p-3.5 shadow-xs hover:border-brand/60 transition-all flex flex-col justify-between group relative overflow-hidden"
+              >
+                <div className="absolute top-2.5 right-2.5 z-10">
+                  <Badge className="bg-brand text-white text-[9px] px-1.5 py-0 uppercase font-bold tracking-wider shadow-xs">
+                    NEW
+                  </Badge>
+                </div>
+
+                <div className="relative h-32 w-full bg-neutral-100 dark:bg-neutral-900 rounded-xl overflow-hidden mb-2.5 border border-border/50">
+                  <Image
+                    src={t.images?.[0] || "/assets/drill machine.png"}
+                    alt={t.title}
+                    fill
+                    className="object-contain p-2 group-hover:scale-105 transition-transform"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground font-semibold uppercase">{t.category?.replace(/_/g, " ")}</span>
+                  </div>
+                  <h4 className="font-oswald text-xs font-bold uppercase text-foreground line-clamp-1 group-hover:text-brand transition-colors">
+                    {t.title}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    By <span className="font-semibold text-foreground">{t.ownerName}</span>
+                  </p>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
+                    <span className="font-oswald font-black text-brand text-sm">₹{t.ratePerDay}/day</span>
+                    <span className="text-[11px] text-muted-foreground">{t.pickupArea || t.city}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Featured Hardware Section */}
       <div className="space-y-4 pt-4 border-t border-border">

@@ -83,7 +83,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 4.9,
     reviewsCount: 24,
     featured: true,
-    model3DType: "drill"
+    model3DType: "drill",
+    createdAt: "2026-10-20T10:00:00Z"
   },
   {
     id: "tool-2",
@@ -112,7 +113,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 5.0,
     reviewsCount: 19,
     featured: true,
-    model3DType: "saw"
+    model3DType: "saw",
+    createdAt: "2026-10-20T11:00:00Z"
   },
   {
     id: "tool-3",
@@ -140,7 +142,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 4.8,
     reviewsCount: 15,
     featured: true,
-    model3DType: "grinder"
+    model3DType: "grinder",
+    createdAt: "2026-10-20T12:00:00Z"
   },
   {
     id: "tool-4",
@@ -168,7 +171,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 4.7,
     reviewsCount: 31,
     featured: true,
-    model3DType: "washer"
+    model3DType: "washer",
+    createdAt: "2026-10-20T13:00:00Z"
   },
   {
     id: "tool-5",
@@ -196,7 +200,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 4.9,
     reviewsCount: 12,
     featured: false,
-    model3DType: "chainsaw"
+    model3DType: "chainsaw",
+    createdAt: "2026-10-20T14:00:00Z"
   },
   {
     id: "tool-6",
@@ -224,7 +229,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 4.9,
     reviewsCount: 42,
     featured: true,
-    model3DType: "box"
+    model3DType: "box",
+    createdAt: "2026-10-20T15:00:00Z"
   },
   {
     id: "tool-7",
@@ -252,7 +258,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 4.8,
     reviewsCount: 16,
     featured: false,
-    model3DType: "sander"
+    model3DType: "sander",
+    createdAt: "2026-10-20T16:00:00Z"
   },
   {
     id: "tool-8",
@@ -280,7 +287,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
     rating: 5.0,
     reviewsCount: 28,
     featured: false,
-    model3DType: "ladder"
+    model3DType: "ladder",
+    createdAt: "2026-10-20T17:00:00Z"
   },
   {
     id: "tool-9",
@@ -293,6 +301,7 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Electric Planner.png"],
     city: "Mumbai",
     address: "Colaba, Mumbai",
+    pickupArea: "Colaba",
     specs: {
       "Planing Width": "82 mm",
       "Planing Depth": "2 mm",
@@ -302,10 +311,13 @@ export const INITIAL_TOOLS: ToolItem[] = [
     ownerEmail: "john_owner@example.com",
     ownerId: "user-1",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-9",
     rating: 4.7,
     reviewsCount: 9,
     featured: false,
-    model3DType: "planer"
+    model3DType: "planer",
+    createdAt: "2026-10-20T18:00:00Z"
   },
   {
     id: "tool-10",
@@ -318,6 +330,7 @@ export const INITIAL_TOOLS: ToolItem[] = [
     images: ["/assets/Tile Cutter.png"],
     city: "Pune",
     address: "Viman Nagar, Pune",
+    pickupArea: "Viman Nagar",
     specs: {
       "Max Cut Length": "800 mm",
       "Cutting Thickness": "6 - 15 mm",
@@ -327,10 +340,13 @@ export const INITIAL_TOOLS: ToolItem[] = [
     ownerEmail: "alice_owner@example.com",
     ownerId: "user-2",
     isAvailable: true,
+    isPublished: true,
+    publicId: "qr-tool-10",
     rating: 4.9,
     reviewsCount: 14,
     featured: false,
-    model3DType: "cutter"
+    model3DType: "cutter",
+    createdAt: "2026-10-20T19:00:00Z"
   }
 ];
 
