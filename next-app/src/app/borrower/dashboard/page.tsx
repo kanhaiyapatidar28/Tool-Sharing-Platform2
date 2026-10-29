@@ -71,6 +71,94 @@ export default function BorrowerDashboardPage() {
     }
   }, [user, authLoading]);
 
+  // Real-time synchronization
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let chatChannel: BroadcastChannel | null = null;
+    let bookingChannel: BroadcastChannel | null = null;
+
+    try {
+      chatChannel = new BroadcastChannel("toolshare_live_chat");
+      chatChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data && data.bookingId && data.message) {
+          setBookings((prev) =>
+            prev.map((b) => {
+              if (b.id === data.bookingId || b._id === data.bookingId) {
+                const existing = b.messages || [];
+                const already = existing.some(
+                  (m) =>
+                    m.text === data.message.text &&
+                    m.timestamp === data.message.timestamp
+                );
+                return {
+                  ...b,
+                  messages: already ? existing : [...existing, data.message],
+                };
+              }
+              return b;
+            })
+          );
+        }
+      };
+
+      bookingChannel = new BroadcastChannel("toolshare_booking_sync");
+      bookingChannel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === "NEW_BOOKING" && data.booking) {
+          const newB = data.booking;
+          if (newB.renterEmail?.toLowerCase() === user?.email?.toLowerCase()) {
+            setBookings((prev) => [newB, ...prev]);
+          }
+        }
+        if (data?.type === "STATUS_UPDATE" && data.bookingId && data.status) {
+          setBookings((prev) =>
+            prev.map((b) =>
+              b.id === data.bookingId || b._id === data.bookingId
+                ? { ...b, status: data.status }
+                : b
+            )
+          );
+        }
+      };
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith("toolshare_chat_sync_")) {
+        try {
+          const parsed = JSON.parse(e.newValue || "{}");
+          if (parsed && parsed.bookingId && parsed.message) {
+            setBookings((prev) =>
+              prev.map((b) => {
+                if (b.id === parsed.bookingId || b._id === parsed.bookingId) {
+                  const existing = b.messages || [];
+                  const already = existing.some(
+                    (m) =>
+                      m.text === parsed.message.text &&
+                      m.timestamp === parsed.message.timestamp
+                  );
+                  return {
+                    ...b,
+                    messages: already ? existing : [...existing, parsed.message],
+                  };
+                }
+                return b;
+              })
+            );
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      chatChannel?.close();
+      bookingChannel?.close();
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [user]);
+
   const activeRentals = bookings.filter((b) => b.status === "RENTED" || b.status === "CONFIRMED" || b.status === "APPROVED");
   const completedRentals = bookings.filter((b) => b.status === "COMPLETED");
 
@@ -333,6 +421,15 @@ export default function BorrowerDashboardPage() {
           booking={chatBooking}
           currentUser={user}
           onClose={() => setChatBooking(null)}
+          onMessageSent={(bookingId, updatedMsgs) => {
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === bookingId || b._id === bookingId
+                  ? { ...b, messages: updatedMsgs }
+                  : b
+              )
+            );
+          }}
         />
       )}
 

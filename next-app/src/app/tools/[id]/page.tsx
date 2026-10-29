@@ -156,6 +156,14 @@ export default function ToolDetailPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setBookingSuccess(true);
+        if (typeof window !== "undefined") {
+          try {
+            const bc = new BroadcastChannel("toolshare_booking_sync");
+            bc.postMessage({ type: "NEW_BOOKING", booking: data.booking });
+            bc.close();
+            localStorage.setItem("toolshare_last_booking", JSON.stringify(data.booking));
+          } catch {}
+        }
       } else {
         setBookingError(data.error || "Could not complete booking. Please check dates.");
       }

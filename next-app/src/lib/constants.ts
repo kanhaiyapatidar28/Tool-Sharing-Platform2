@@ -35,6 +35,7 @@ export interface BookingItem {
   renterEmail: string;
   ownerName: string;
   ownerEmail?: string;
+  ownerId?: string;
   startDate: string;
   endDate: string;
   totalDays: number;
@@ -74,8 +75,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Weight": "1.8 kg"
     },
     ownerName: "John Owner",
-    ownerEmail: "owner@toolshare.in",
-    ownerId: "usr-owner",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
     isAvailable: true,
     isPublished: true,
     publicId: "qr-tool-1",
@@ -131,8 +132,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Cord Length": "2.5 m"
     },
     ownerName: "John Owner",
-    ownerEmail: "owner@toolshare.in",
-    ownerId: "usr-owner",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
     isAvailable: true,
     isPublished: true,
     publicId: "qr-tool-3",
@@ -187,8 +188,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Weight": "4.6 kg"
     },
     ownerName: "John Owner",
-    ownerEmail: "owner@toolshare.in",
-    ownerId: "usr-owner",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
     isAvailable: true,
     isPublished: true,
     publicId: "qr-tool-5",
@@ -243,8 +244,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Power": "250W"
     },
     ownerName: "John Owner",
-    ownerEmail: "owner@toolshare.in",
-    ownerId: "usr-owner",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
     isAvailable: true,
     isPublished: true,
     publicId: "qr-tool-7",
@@ -298,7 +299,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Power": "710 Watts"
     },
     ownerName: "John Owner",
-    ownerEmail: "john@example.com",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
     isAvailable: true,
     rating: 4.7,
     reviewsCount: 9,
@@ -322,7 +324,8 @@ export const INITIAL_TOOLS: ToolItem[] = [
       "Laser Guide": "Dual Class II"
     },
     ownerName: "Alice Owner",
-    ownerEmail: "alice@example.com",
+    ownerEmail: "alice_owner@example.com",
+    ownerId: "user-2",
     isAvailable: true,
     rating: 4.9,
     reviewsCount: 14,
@@ -383,6 +386,8 @@ export const INITIAL_BOOKINGS: BookingItem[] = [
     renterName: "Bob Borrower",
     renterEmail: "bob_borrower@example.com",
     ownerName: "John Owner",
+    ownerEmail: "john_owner@example.com",
+    ownerId: "user-1",
     startDate: "2026-10-24",
     endDate: "2026-10-27",
     totalDays: 3,
@@ -417,6 +422,8 @@ export const INITIAL_BOOKINGS: BookingItem[] = [
     renterName: "Bob Borrower",
     renterEmail: "bob_borrower@example.com",
     ownerName: "Alice Owner",
+    ownerEmail: "alice_owner@example.com",
+    ownerId: "user-2",
     startDate: "2026-10-28",
     endDate: "2026-10-29",
     totalDays: 1,
