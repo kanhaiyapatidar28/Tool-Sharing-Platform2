@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-client";
+import { useAuth, getStoredUser } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,8 +29,31 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const isOwner = user?.role === "owner" || (user?.isOwner && user?.role !== "borrower");
-  const isBorrower = user?.role === "borrower" || (!user?.isOwner && Boolean(user));
+  const isBorrowerRoute = pathname.startsWith("/borrower");
+  const isOwnerRoute =
+    pathname.startsWith("/owner") ||
+    pathname === "/owner-dashboard" ||
+    pathname === "/list-tool";
+
+  // Active user for the current portal context
+  const activeUser =
+    (isBorrowerRoute && user?.role !== "borrower")
+      ? (getStoredUser("borrower") || user)
+      : (isOwnerRoute && user?.role !== "owner")
+      ? (getStoredUser("owner") || user)
+      : user;
+
+  const isOwner = isBorrowerRoute
+    ? false
+    : isOwnerRoute
+    ? true
+    : activeUser?.role === "owner";
+
+  const isBorrower = isBorrowerRoute
+    ? true
+    : isOwnerRoute
+    ? false
+    : activeUser?.role === "borrower" || (!activeUser?.isOwner && Boolean(activeUser));
 
   const handleLogout = async () => {
     const roleToLogout = isOwner ? "owner" : "borrower";
@@ -60,7 +83,7 @@ export default function Navbar() {
           </Link>
 
           {/* Prominent Role Badge after login */}
-          {user && (
+          {activeUser && (
             <Badge
               variant="outline"
               className={`hidden lg:inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full border shadow-2xs ${
@@ -83,7 +106,7 @@ export default function Navbar() {
         <nav className="hidden md:flex items-center gap-1 bg-neutral-100 border border-neutral-200/80 rounded-full px-4 py-1.5 text-xs sm:text-sm text-neutral-700 font-medium">
           {loading ? (
             <div className="h-6 w-48 bg-neutral-200/70 rounded-full animate-pulse" />
-          ) : user && isOwner ? (
+          ) : activeUser && isOwner ? (
             /* ================= OWNER NAVBAR ================= */
             <>
               <Link
@@ -138,7 +161,7 @@ export default function Navbar() {
                 Profile
               </Link>
             </>
-          ) : user && isBorrower ? (
+          ) : activeUser && isBorrower ? (
             /* ================= BORROWER NAVBAR ================= */
             <>
               <Link
@@ -241,7 +264,7 @@ export default function Navbar() {
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Action Button depending on role */}
-          {user && isOwner && (
+          {activeUser && isOwner && (
             <Link href="/owner/tools/new" className="hidden sm:inline-block">
               <Button
                 variant="pill"
@@ -252,7 +275,7 @@ export default function Navbar() {
             </Link>
           )}
 
-          {user && isBorrower && (
+          {activeUser && isBorrower && (
             <Link href="/borrower/explore" className="hidden sm:inline-block">
               <Button
                 variant="pill"
@@ -264,7 +287,7 @@ export default function Navbar() {
           )}
 
           {/* User Profile Menu or Guest Login/Register */}
-          {user ? (
+          {activeUser ? (
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
@@ -272,15 +295,15 @@ export default function Navbar() {
                 aria-label="User Account Menu"
               >
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-brand/30 flex items-center justify-center shrink-0">
-                  {user.avatar ? (
+                  {activeUser.avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                    <img src={activeUser.avatar} alt={activeUser.name} className="w-full h-full object-cover" />
                   ) : (
                     <UserIcon className="w-3.5 h-3.5 text-brand" />
                   )}
                 </div>
                 <span className="font-oswald tracking-wide uppercase max-w-[80px] sm:max-w-[100px] truncate text-neutral-900 font-bold">
-                  {user.name.split(" ")[0]}
+                  {activeUser.name.split(" ")[0]}
                 </span>
                 <span
                   className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full shrink-0 shadow-xs text-white ${
@@ -296,8 +319,8 @@ export default function Navbar() {
               {userDropdownOpen && (
                 <div className="absolute right-0 mt-3 w-64 bg-white border border-neutral-200 rounded-2xl p-2 shadow-2xl z-50 text-neutral-900 text-xs animate-in fade-in zoom-in-95">
                   <div className="px-3 py-2 border-b border-neutral-100 mb-1">
-                    <p className="font-bold text-sm uppercase font-oswald text-neutral-900">{user.name}</p>
-                    <p className="text-[11px] text-neutral-500 truncate">{user.email}</p>
+                    <p className="font-bold text-sm uppercase font-oswald text-neutral-900">{activeUser.name}</p>
+                    <p className="text-[11px] text-neutral-500 truncate">{activeUser.email}</p>
                     <Badge
                       variant={isOwner ? "default" : "info"}
                       className={`mt-1.5 text-[10px] ${isOwner ? "bg-brand text-white" : "bg-emerald-600 text-white"}`}
@@ -435,13 +458,13 @@ export default function Navbar() {
       {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="md:hidden mt-2 bg-white border border-neutral-200 rounded-3xl p-5 shadow-2xl text-neutral-900 space-y-3 animate-in fade-in slide-in-from-top-2">
-          {user && isOwner ? (
+          {activeUser && isOwner ? (
             /* Owner Mobile Menu */
             <>
               <div className="px-2 pb-2 border-b border-neutral-100 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-sm text-neutral-900">{user.name}</p>
-                  <p className="text-xs text-neutral-500">{user.email}</p>
+                  <p className="font-bold text-sm text-neutral-900">{activeUser.name}</p>
+                  <p className="text-xs text-neutral-500">{activeUser.email}</p>
                 </div>
                 <Badge className="bg-brand text-white text-[10px]">Owner</Badge>
               </div>
@@ -488,13 +511,13 @@ export default function Navbar() {
                 Notifications
               </Link>
             </>
-          ) : user && isBorrower ? (
+          ) : activeUser && isBorrower ? (
             /* Borrower Mobile Menu */
             <>
               <div className="px-2 pb-2 border-b border-neutral-100 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-sm text-neutral-900">{user.name}</p>
-                  <p className="text-xs text-neutral-500">{user.email}</p>
+                  <p className="font-bold text-sm text-neutral-900">{activeUser.name}</p>
+                  <p className="text-xs text-neutral-500">{activeUser.email}</p>
                 </div>
                 <Badge className="bg-emerald-600 text-white text-[10px]">Borrower</Badge>
               </div>

@@ -74,8 +74,8 @@ export const DEFAULT_CREDENTIALS: StoredCredentialUser[] = [
 export function getContextRole(): UserRole | null {
   if (typeof window === "undefined") return null;
   const p = window.location.pathname;
-  if (p.startsWith("/owner")) return "owner";
-  if (p.startsWith("/borrower")) return "borrower";
+  if (p.startsWith("/owner") || p === "/owner-dashboard" || p === "/list-tool") return "owner";
+  if (p.startsWith("/borrower") || p === "/browse" || p === "/bookings") return "borrower";
   return null;
 }
 
@@ -84,17 +84,7 @@ export function getStoredUser(preferredRole?: UserRole): AuthUser | null {
   try {
     const role = preferredRole || getContextRole();
 
-    if (role === "owner") {
-      const ownerRaw = localStorage.getItem(OWNER_STORAGE_KEY);
-      if (ownerRaw) {
-        const parsed = JSON.parse(ownerRaw);
-        return {
-          ...parsed,
-          role: "owner",
-          isOwner: true,
-        };
-      }
-    } else if (role === "borrower") {
+    if (role === "borrower") {
       const borrowerRaw = localStorage.getItem(BORROWER_STORAGE_KEY);
       if (borrowerRaw) {
         const parsed = JSON.parse(borrowerRaw);
@@ -104,29 +94,40 @@ export function getStoredUser(preferredRole?: UserRole): AuthUser | null {
           isOwner: false,
         };
       }
+    } else if (role === "owner") {
+      const ownerRaw = localStorage.getItem(OWNER_STORAGE_KEY);
+      if (ownerRaw) {
+        const parsed = JSON.parse(ownerRaw);
+        return {
+          ...parsed,
+          role: "owner",
+          isOwner: true,
+        };
+      }
     }
 
     // Fallback to active/global user
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const isOwnerRole = parsed.role === "owner";
       return {
         ...parsed,
-        role: parsed.role || (parsed.isOwner ? "owner" : "borrower"),
-        isOwner: parsed.role === "owner" || Boolean(parsed.isOwner),
+        role: isOwnerRole ? "owner" : "borrower",
+        isOwner: isOwnerRole,
       };
     }
 
-    // If still no global user, check if owner or borrower user exists
-    const oRaw = localStorage.getItem(OWNER_STORAGE_KEY);
-    if (oRaw) {
-      const parsed = JSON.parse(oRaw);
-      return { ...parsed, role: "owner", isOwner: true };
-    }
+    // Fallback check
     const bRaw = localStorage.getItem(BORROWER_STORAGE_KEY);
     if (bRaw) {
       const parsed = JSON.parse(bRaw);
       return { ...parsed, role: "borrower", isOwner: false };
+    }
+    const oRaw = localStorage.getItem(OWNER_STORAGE_KEY);
+    if (oRaw) {
+      const parsed = JSON.parse(oRaw);
+      return { ...parsed, role: "owner", isOwner: true };
     }
 
     return null;
@@ -140,10 +141,11 @@ export function setStoredUser(user: AuthUser | null, targetRole?: UserRole) {
   const role = targetRole || user?.role || getContextRole() || undefined;
 
   if (user) {
+    const isOwnerRole = user.role === "owner";
     const sanitized: AuthUser = {
       ...user,
-      role: user.role || (user.isOwner ? "owner" : "borrower"),
-      isOwner: user.role === "owner" || Boolean(user.isOwner),
+      role: isOwnerRole ? "owner" : "borrower",
+      isOwner: isOwnerRole,
     };
     if (sanitized.role === "owner") {
       localStorage.setItem(OWNER_STORAGE_KEY, JSON.stringify(sanitized));
@@ -155,7 +157,6 @@ export function setStoredUser(user: AuthUser | null, targetRole?: UserRole) {
     // Role-specific sign-out
     if (role === "owner") {
       localStorage.removeItem(OWNER_STORAGE_KEY);
-      // If global user was owner, see if borrower is still logged in
       const currentGlobal = localStorage.getItem(STORAGE_KEY);
       if (currentGlobal) {
         try {
@@ -174,7 +175,6 @@ export function setStoredUser(user: AuthUser | null, targetRole?: UserRole) {
       }
     } else if (role === "borrower") {
       localStorage.removeItem(BORROWER_STORAGE_KEY);
-      // If global user was borrower, see if owner is still logged in
       const currentGlobal = localStorage.getItem(STORAGE_KEY);
       if (currentGlobal) {
         try {
@@ -253,12 +253,13 @@ export function useAuth() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.success && data.user) {
+          const isOwnerRole = data.user.role === "owner";
           const synced: AuthUser = {
             id: data.user.id,
             name: data.user.name,
             email: data.user.email,
-            role: data.user.role,
-            isOwner: data.user.isOwner,
+            role: isOwnerRole ? "owner" : "borrower",
+            isOwner: isOwnerRole,
             avatar: data.user.avatar,
             phone: data.user.phone,
             city: data.user.city,
@@ -274,7 +275,7 @@ export function useAuth() {
         }
       })
       .catch(() => {
-        // Network offline fallback: keep cached user only if offline
+        // Network offline fallback
       })
       .finally(() => {
         setLoading(false);
@@ -288,12 +289,10 @@ export function useAuth() {
         if (e.key === OWNER_STORAGE_KEY) {
           setUser(getStoredUser("owner"));
         }
-        // Ignores BORROWER_STORAGE_KEY changes
       } else if (currentRole === "borrower") {
         if (e.key === BORROWER_STORAGE_KEY) {
           setUser(getStoredUser("borrower"));
         }
-        // Ignores OWNER_STORAGE_KEY changes
       } else {
         if (
           e.key === STORAGE_KEY ||
@@ -305,25 +304,41 @@ export function useAuth() {
       }
     };
 
+    // 4. In-page auth sync when login/logout is triggered from another component in same window
+    const handleAuthChange = () => {
+      const currentRole = getContextRole();
+      setUser(getStoredUser(currentRole || undefined));
+    };
+
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("toolshare_auth_change", handleAuthChange);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("toolshare_auth_change", handleAuthChange);
+    };
   }, []);
 
   const login = (newUser: AuthUser) => {
+    const isOwnerRole = newUser.role === "owner";
     const sanitized: AuthUser = {
       ...newUser,
-      role: newUser.role || (newUser.isOwner ? "owner" : "borrower"),
-      isOwner: newUser.role === "owner" || Boolean(newUser.isOwner),
+      role: isOwnerRole ? "owner" : "borrower",
+      isOwner: isOwnerRole,
     };
     setStoredUser(sanitized, sanitized.role);
     setUser(sanitized);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("toolshare_auth_change", { detail: sanitized })
+      );
+    }
   };
 
   const logout = async (roleToLogout?: UserRole) => {
     const role =
       roleToLogout ||
-      user?.role ||
       getContextRole() ||
+      user?.role ||
       undefined;
 
     try {
@@ -338,14 +353,20 @@ export function useAuth() {
 
     setStoredUser(null, role);
     setUser(null);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("toolshare_auth_change", { detail: null })
+      );
+    }
   };
 
   const switchRole = (newRole: UserRole) => {
     if (!user) return;
+    const isOwnerRole = newRole === "owner";
     const updated: AuthUser = {
       ...user,
-      role: newRole,
-      isOwner: newRole === "owner",
+      role: isOwnerRole ? "owner" : "borrower",
+      isOwner: isOwnerRole,
     };
     login(updated);
   };
