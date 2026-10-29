@@ -433,6 +433,9 @@ export default function BorrowerBookingsPage() {
         <RealTimeChatModal
           booking={chatBooking}
           currentUser={user}
+          currentUserRole="borrower"
+          currentUserName={user?.name || "Bob Borrower"}
+          currentUserEmail={user?.email || "bob_borrower@example.com"}
           onClose={() => setChatBooking(null)}
           onMessageSent={(bookingId, updatedMsgs) => {
             setBookings((prev) =>

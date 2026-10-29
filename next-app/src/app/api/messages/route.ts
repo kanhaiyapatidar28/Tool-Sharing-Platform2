@@ -81,7 +81,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(request);
-    const { bookingId, senderName, senderEmail, text } = await request.json();
+    const { bookingId, senderName, senderEmail, text, senderRole } = await request.json();
 
     if (!bookingId || !text || !text.trim()) {
       return NextResponse.json(
@@ -92,11 +92,15 @@ export async function POST(request: Request) {
 
     const effectiveName = session?.name || senderName || "User";
     const effectiveEmail = session?.email || senderEmail || "unknown@toolshare.in";
+    const effectiveRole = (session?.role === "owner" || session?.role === "borrower") 
+      ? session.role 
+      : (senderRole === "owner" || senderRole === "borrower" ? senderRole : undefined);
 
     const result = await addBookingMessage(bookingId, {
       senderName: effectiveName,
       senderEmail: effectiveEmail,
       text: text.trim(),
+      senderRole: effectiveRole,
     });
 
     if (!result.success) {

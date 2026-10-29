@@ -24,6 +24,7 @@ export interface IBooking extends Document {
   messages: Array<{
     senderName: string;
     senderEmail: string;
+    senderRole?: "owner" | "borrower";
     text: string;
     timestamp: Date;
   }>;
@@ -61,6 +62,7 @@ const BookingSchema: Schema = new Schema(
       {
         senderName: { type: String },
         senderEmail: { type: String },
+        senderRole: { type: String, enum: ["owner", "borrower"] },
         text: { type: String },
         timestamp: { type: Date, default: Date.now },
       },

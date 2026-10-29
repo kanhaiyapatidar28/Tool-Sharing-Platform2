@@ -49,6 +49,7 @@ export interface BookingItem {
   messages: Array<{
     senderName: string;
     senderEmail: string;
+    senderRole?: "owner" | "borrower";
     text: string;
     timestamp: string;
   }>;
@@ -418,12 +419,14 @@ export const INITIAL_BOOKINGS: BookingItem[] = [
       {
         senderName: "Bob Borrower",
         senderEmail: "bob_borrower@example.com",
+        senderRole: "borrower",
         text: "Hi John, picking up the drill now!",
         timestamp: "2026-10-24T09:45:00Z"
       },
       {
         senderName: "John Owner",
         senderEmail: "john_owner@example.com",
+        senderRole: "owner",
         text: "Great! Both batteries are fully charged and in the case.",
         timestamp: "2026-10-24T09:50:00Z"
       }
@@ -475,6 +478,7 @@ export const INITIAL_BOOKINGS: BookingItem[] = [
       {
         senderName: "Bob Borrower",
         senderEmail: "bob_borrower@example.com",
+        senderRole: "borrower",
         text: "Hi John, I sent an instant rent request for your circular saw. Is the rip fence included?",
         timestamp: "2026-10-29T10:00:00Z"
       }

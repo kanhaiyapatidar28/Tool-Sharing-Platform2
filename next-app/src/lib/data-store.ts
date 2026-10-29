@@ -517,11 +517,12 @@ export async function deleteTool(
   return { success: true };
 }
 
-function formatMessages(messages: any[]): Array<{ senderName: string; senderEmail: string; text: string; timestamp: string }> {
+function formatMessages(messages: any[]): Array<{ senderName: string; senderEmail: string; text: string; timestamp: string; senderRole?: "owner" | "borrower" }> {
   if (!Array.isArray(messages)) return [];
   return messages.map((m) => ({
     senderName: String(m.senderName || ""),
     senderEmail: String(m.senderEmail || ""),
+    senderRole: m.senderRole === "owner" || m.senderRole === "borrower" ? m.senderRole : undefined,
     text: String(m.text || ""),
     timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : String(m.timestamp || new Date().toISOString()),
   }));
@@ -851,6 +852,7 @@ export async function createBooking(data: {
               senderName: data.renterName,
               senderEmail: data.renterEmail.toLowerCase().trim(),
               text: data.initialMsg,
+              senderRole: "borrower" as const,
               timestamp: new Date().toISOString(),
             },
           ]
@@ -932,6 +934,7 @@ export async function createBooking(data: {
             senderName: data.renterName,
             senderEmail: data.renterEmail.toLowerCase().trim(),
             text: data.initialMsg,
+            senderRole: "borrower" as const,
             timestamp: new Date().toISOString(),
           },
         ]
@@ -1077,12 +1080,13 @@ export async function getWishlist(userEmail: string): Promise<ToolItem[]> {
 
 export async function addBookingMessage(
   bookingId: string,
-  msg: { senderName: string; senderEmail: string; text: string }
+  msg: { senderName: string; senderEmail: string; text: string; senderRole?: "owner" | "borrower" }
 ): Promise<{ success: boolean; message?: any; messages?: any[] }> {
   const newMsg = {
     senderName: msg.senderName,
     senderEmail: msg.senderEmail.toLowerCase().trim(),
     text: msg.text,
+    senderRole: msg.senderRole,
     timestamp: new Date().toISOString(),
   };
 

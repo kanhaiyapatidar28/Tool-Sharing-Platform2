@@ -449,7 +449,19 @@ export default function OwnerBookingsPage() {
         <RealTimeChatModal
           booking={chatBooking}
           currentUser={user}
+          currentUserRole="owner"
+          currentUserName={user?.name || "John Owner"}
+          currentUserEmail={user?.email || "owner@toolshare.in"}
           onClose={() => setChatBooking(null)}
+          onMessageSent={(bookingId, updatedMsgs) => {
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === bookingId || b._id === bookingId
+                  ? { ...b, messages: updatedMsgs }
+                  : b
+              )
+            );
+          }}
         />
       )}
 

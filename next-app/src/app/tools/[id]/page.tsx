@@ -608,6 +608,9 @@ export default function ToolDetailPage() {
         <RealTimeChatModal
           booking={createdBooking}
           currentUser={user}
+          currentUserRole={user?.role === "owner" ? "owner" : "borrower"}
+          currentUserName={user?.name || guestName || "Bob Borrower"}
+          currentUserEmail={user?.email || guestEmail || "bob_borrower@example.com"}
           onClose={() => setShowChatModal(false)}
         />
       )}

@@ -928,6 +928,9 @@ export default function OwnerDashboardPage() {
         <RealTimeChatModal
           booking={chatBooking}
           currentUser={user}
+          currentUserRole="owner"
+          currentUserName={user?.name || "John Owner"}
+          currentUserEmail={user?.email || "owner@toolshare.in"}
           onClose={() => setChatBooking(null)}
           onMessageSent={(bookingId, updatedMsgs) => {
             setBookings((prev) =>

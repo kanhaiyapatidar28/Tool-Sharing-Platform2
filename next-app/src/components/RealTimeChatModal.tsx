@@ -11,15 +11,16 @@ import {
   X,
   Send,
   Sparkles,
-  CheckCheck,
   User,
-  ShieldCheck,
   MessageSquare,
 } from "lucide-react";
 
 interface RealTimeChatModalProps {
   booking: BookingItem;
-  currentUser: AuthUser | null;
+  currentUser?: AuthUser | null;
+  currentUserRole?: "owner" | "borrower";
+  currentUserName?: string;
+  currentUserEmail?: string;
   onClose: () => void;
   onMessageSent?: (bookingId: string, updatedMessages: any[]) => void;
 }
@@ -27,6 +28,9 @@ interface RealTimeChatModalProps {
 export default function RealTimeChatModal({
   booking,
   currentUser,
+  currentUserRole,
+  currentUserName,
+  currentUserEmail,
   onClose,
   onMessageSent,
 }: RealTimeChatModalProps) {
@@ -35,24 +39,80 @@ export default function RealTimeChatModal({
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const isOwner = currentUser?.isOwner || currentUser?.role === "owner";
-  const otherPartyName = isOwner ? booking.renterName : booking.ownerName;
+  // Determine if the current viewer is acting as the Owner or the Borrower
+  const isOwner =
+    currentUserRole === "owner" ||
+    (!currentUserRole && (currentUser?.isOwner || currentUser?.role === "owner")) ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/owner")) ||
+    Boolean(
+      currentUserEmail &&
+        booking.ownerEmail &&
+        currentUserEmail.toLowerCase().trim() === booking.ownerEmail.toLowerCase().trim()
+    ) ||
+    Boolean(
+      currentUser?.email &&
+        booking.ownerEmail &&
+        currentUser.email.toLowerCase().trim() === booking.ownerEmail.toLowerCase().trim()
+    );
+
+  const currentEmail =
+    currentUserEmail ||
+    currentUser?.email ||
+    (isOwner
+      ? (booking.ownerEmail || "owner@toolshare.in")
+      : (booking.renterEmail || "bob_borrower@example.com"));
+
+  const currentName =
+    currentUserName ||
+    currentUser?.name ||
+    (isOwner
+      ? (booking.ownerName || "John Owner")
+      : (booking.renterName || "Bob Borrower"));
+
+  const otherPartyName = isOwner
+    ? (booking.renterName || "Borrower")
+    : (booking.ownerName || "Tool Owner");
+
   const otherPartyRole = isOwner ? "Borrower" : "Tool Owner";
-
-  const currentEmail = currentUser
-    ? currentUser.email
-    : isOwner
-    ? "john_owner@example.com"
-    : "bob_borrower@example.com";
-
-  const currentName = currentUser
-    ? currentUser.name
-    : isOwner
-    ? "John Owner"
-    : "Bob Borrower";
 
   const bId = booking.id || booking._id;
   const bAltId = booking._id || booking.id;
+
+  // Helper to reliably identify if a message was sent by Owner vs Borrower
+  const isMessageFromOwner = (m: any): boolean => {
+    // 1. Explicit senderRole tag
+    if (m.senderRole === "owner") return true;
+    if (m.senderRole === "borrower") return false;
+
+    // 2. Exact email matching against booking metadata
+    const sEmail = (m.senderEmail || "").toLowerCase().trim();
+    const bOwnerEmail = (booking.ownerEmail || "").toLowerCase().trim();
+    const bRenterEmail = (booking.renterEmail || "").toLowerCase().trim();
+
+    if (sEmail && bOwnerEmail && sEmail === bOwnerEmail) return true;
+    if (sEmail && bRenterEmail && sEmail === bRenterEmail) return false;
+
+    // 3. Known default email keywords
+    if (sEmail.includes("owner") || sEmail.includes("john") || sEmail.includes("alice")) return true;
+    if (sEmail.includes("borrower") || sEmail.includes("renter") || sEmail.includes("bob")) return false;
+
+    // 4. Exact name matching
+    const sName = (m.senderName || "").toLowerCase().trim();
+    const bOwnerName = (booking.ownerName || "").toLowerCase().trim();
+    const bRenterName = (booking.renterName || "").toLowerCase().trim();
+
+    if (sName && bOwnerName && sName === bOwnerName) return true;
+    if (sName && bRenterName && sName === bRenterName) return false;
+    if (sName.includes("owner") || sName.includes("john")) return true;
+    if (sName.includes("borrower") || sName.includes("bob")) return false;
+
+    // 5. Booking initial message is always sent by the borrower
+    if (booking.initialMsg && m.text && m.text.trim() === booking.initialMsg.trim()) {
+      return false;
+    }
+
+    return false;
+  };
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -68,7 +128,11 @@ export default function RealTimeChatModal({
     async function fetchMessages() {
       try {
         const targetId = bId || "";
-        const res = await fetch(`/api/messages?bookingId=${encodeURIComponent(targetId)}&userEmail=${encodeURIComponent(currentEmail)}`);
+        const res = await fetch(
+          `/api/messages?bookingId=${encodeURIComponent(targetId)}&userEmail=${encodeURIComponent(
+            currentEmail
+          )}`
+        );
         const data = await res.json();
         if (data.success && data.messages) {
           setMessages(data.messages);
@@ -162,6 +226,7 @@ export default function RealTimeChatModal({
     const newMsg = {
       senderName: currentName,
       senderEmail: currentEmail,
+      senderRole: isOwner ? ("owner" as const) : ("borrower" as const),
       text: textToSend,
       timestamp: new Date().toISOString(),
     };
@@ -192,7 +257,8 @@ export default function RealTimeChatModal({
           ts: Date.now(),
         });
         if (bId) localStorage.setItem(`toolshare_chat_sync_${bId}`, payload);
-        if (bAltId && bAltId !== bId) localStorage.setItem(`toolshare_chat_sync_${bAltId}`, payload);
+        if (bAltId && bAltId !== bId)
+          localStorage.setItem(`toolshare_chat_sync_${bAltId}`, payload);
         localStorage.setItem("toolshare_global_chat_sync", payload);
       }
     } catch (e) {
@@ -212,6 +278,7 @@ export default function RealTimeChatModal({
           bookingId: bId,
           senderName: currentName,
           senderEmail: currentEmail,
+          senderRole: isOwner ? "owner" : "borrower",
           text: textToSend,
         }),
       });
@@ -299,7 +366,9 @@ export default function RealTimeChatModal({
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             Real-Time Live Chat &bull; {booking.toolTitle}
           </span>
-          <span className="font-mono text-muted-foreground text-[9px]">ID: {bId}</span>
+          <span className="font-mono text-muted-foreground text-[9px]">
+            ID: {bId}
+          </span>
         </div>
 
         {/* Message Feed */}
@@ -309,16 +378,20 @@ export default function RealTimeChatModal({
               <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center text-brand">
                 <MessageSquare className="w-6 h-6" />
               </div>
-              <p className="font-bold text-sm text-foreground">Direct Conversation Started</p>
+              <p className="font-bold text-sm text-foreground">
+                Direct Conversation Started
+              </p>
               <p className="text-xs max-w-xs">
-                Coordinate pickup location, tool operating tips, and return timing in real-time.
+                Coordinate pickup location, tool operating tips, and return
+                timing in real-time.
               </p>
             </div>
           ) : (
             messages.map((m, i) => {
-              const isMe =
-                m.senderEmail?.toLowerCase() === currentEmail?.toLowerCase() ||
-                m.senderName?.toLowerCase() === currentName?.toLowerCase();
+              const msgFromOwner = isMessageFromOwner(m);
+              // For Owner viewer: Owner messages are "Me" (right), Borrower messages are "Other" (left)
+              // For Borrower viewer: Borrower messages are "Me" (right), Owner messages are "Other" (left)
+              const isMe = isOwner ? msgFromOwner : !msgFromOwner;
 
               const formattedTime = m.timestamp
                 ? new Date(m.timestamp).toLocaleTimeString([], {
@@ -326,6 +399,12 @@ export default function RealTimeChatModal({
                     minute: "2-digit",
                   })
                 : "Just now";
+
+              const senderLabel = isMe
+                ? "You"
+                : msgFromOwner
+                ? (booking.ownerName || "Owner")
+                : (booking.renterName || "Borrower");
 
               return (
                 <div
@@ -336,7 +415,7 @@ export default function RealTimeChatModal({
                 >
                   <div className="flex items-baseline gap-1.5 mb-1 px-1">
                     <span className="text-[10px] font-bold text-muted-foreground">
-                      {isMe ? "You" : m.senderName}
+                      {senderLabel}
                     </span>
                     <span className="text-[9px] text-muted-foreground/70">
                       {formattedTime}
